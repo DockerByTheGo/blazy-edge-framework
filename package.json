@@ -1,0 +1,18 @@
+{
+  "name": "@blazyts/blazy-edge",
+  "type": "module",
+  "private": true,
+  "module": "index.ts",
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "devDependencies": {
+    "@blazyts/backend-lib": "workspace:*",
+    "@blazyts/better-standard-library": "workspace:*",
+    "@types/bun": "latest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1000.0",
+    "zod": "^4.3.6"
+  }
+}
