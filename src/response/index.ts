@@ -22,7 +22,26 @@ export const HtmlResponse = (html: BodyInit, init?: ResponseInit): Response =>
     html,
     withDefaultHeader(init, "content-type", "text/html; charset=utf-8"),
   );
-
+  
+/*
+like the html response but adds the body and doctype fields by default 
+*/
+export const HtmlPageResponse = (html: string): Response =>
+  new Response(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document</title>
+</head>
+<body>
+  ${html}
+</body>
+</html>`, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+    },
+  });
 export const HtmlFileResponse = (filePath: string, init?: ResponseInit): Response =>
   HtmlResponse(Bun.file(filePath), init);
 
