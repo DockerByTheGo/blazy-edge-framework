@@ -629,7 +629,7 @@ export class Blazy<
             try { const text = await req.text(); if (text) body = { text }; } catch { body = {} }
           }
 
-          const res = this.route({ reqData: { url: req.url, protocol: req.method, body, verb: req.method, headers } });
+          const res = await this.route({ reqData: { url: req.url, protocol: req.method, body, verb: req.method, headers } });
 
           // If router returned a native Response, forward it. Otherwise try to coerce.
           if (res instanceof Response) return res;
