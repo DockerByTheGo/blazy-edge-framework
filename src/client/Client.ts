@@ -49,7 +49,7 @@ export class ClientConstructors {
 
 export class Client<TRouteTree extends RouteTree> {
 
-    public readonly routes: ClientObject<TRouteTree>
+    public readonly invoke: ClientObject<TRouteTree>
 
     public constructor(
         public readonly routeTree: TRouteTree,
@@ -86,7 +86,7 @@ export class Client<TRouteTree extends RouteTree> {
             return out;
         };
 
-        this.routes = build(this.routeTree) as unknown as ClientObject<TRouteTree>;
+        this.invoke = build(this.routeTree) as unknown as ClientObject<TRouteTree>;
     }
 
     private wrapClientRepresentation<TRepresentation>(representation: TRepresentation): MappedClientRepresentation<TRepresentation> {

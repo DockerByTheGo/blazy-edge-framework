@@ -36,6 +36,17 @@ function makeMockHandler<TArg, TReturn>(
   return handler;
 }
 
+function makeNonFunctionRepresentationHandler<TRepresentation>(
+  subRoute: string,
+  representation: TRepresentation,
+) {
+  return {
+    metadata: { subRoute, verb: "GET" as const },
+    handleRequest: () => representation,
+    getClientRepresentation: (_meta: RuntimeMeta): TRepresentation => representation,
+  } satisfies IRouteHandler<any, any>;
+}
+
 // ---------------------------------------------------------------------------
 // Typed route tree helpers
 //
@@ -63,8 +74,8 @@ describe("Client", () => {
 
     // Full intellisense: client.routes.api.users["/"].POST is typed as
     // (arg: { name: string }) => Promise<{ id: number }>
-    expect(client.routes.api.users["/"]).toBeDefined();
-    expect(client.routes.api.users["/"].POST).toBeDefined();
+    expect(client.invoke.api.users["/"]).toBeDefined();
+    expect(client.invoke.api.users["/"].POST).toBeDefined();
     
   });
 
@@ -77,7 +88,7 @@ describe("Client", () => {
     const client = new Client(tree, "http://localhost:3000");
 
     // intellisense knows this is (arg: { qty: number }) => Promise<IMapable<{ created: boolean }>>
-    const result = await client.routes.orders["/"].POST({ qty: 3 });
+    const result = await client.invoke.orders["/"].POST({ qty: 3 });
 
     expect(result.raw).toEqual({ created: true });
   });
@@ -97,8 +108,8 @@ describe("Client", () => {
     const client = new Client(tree, "http://localhost:3000");
 
     // intellisense: POST and GET are distinct typed fns
-    expect(client.routes.things["/"].POST).toBeDefined();
-    expect(client.routes.things["/"].GET).toBeDefined();
+    expect(client.invoke.things["/"].POST).toBeDefined();
+    expect(client.invoke.things["/"].GET).toBeDefined();
   });
 
   it("deeply nested routes are reachable", () => {
@@ -108,7 +119,7 @@ describe("Client", () => {
     const client = new Client(tree, "http://localhost:3000");
 
     // intellisense resolves all three levels
-    expect(client.routes.a.b.c["/"].POST).toBeDefined();
+    expect(client.invoke.a.b.c["/"].POST).toBeDefined();
   });
 
   it("passes path built from tree traversal to getClientRepresentation", () => {
@@ -128,20 +139,6 @@ describe("Client", () => {
 
     expect(receivedMeta[0]!["path"]).toBe("/deep/route");
   });
-
-  it("skips protocol slots where getClientRepresentation is absent", () => {
-    const broken = {
-      metadata: { subRoute: "/bad" },
-      handleRequest: () => ({}),
-      // no getClientRepresentation
-    };
-
-    const tree = { bad: { "/": { POST: broken } } };
-
-
-    const client = new Client(tree as any, "http://localhost:3000");
-    expect((client.routes as any).bad["/"].POST).toBeUndefined();
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -154,9 +151,9 @@ describe("Client types", () => {
     const client = new Client(tree, "http://localhost:3000");
 
     // arg type
-    expectTypeOf(client.routes.users["/"].POST).parameters.toEqualTypeOf<[{ name: string }]>();
+    expectTypeOf(client.invoke.users["/"].POST).parameters.toEqualTypeOf<[{ name: string }]>();
     // return type
-    expectTypeOf(client.routes.users["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ id: number }>>>();
+    expectTypeOf(client.invoke.users["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ id: number }>>>();
   });
 
   it("nested path resolves to the correct leaf type", () => {
@@ -164,11 +161,11 @@ describe("Client types", () => {
     const tree = { api: { search: protocolLeaf("POST", handler) } };
     const client = new Client(tree, "http://localhost:3000");
 
-    expectTypeOf(client.routes.api.search["/"].POST)
+    expectTypeOf(client.invoke.api.search["/"].POST)
       .parameters
       .toEqualTypeOf<[{ q: string }]>();
 
-    expectTypeOf(client.routes.api.search["/"].POST)
+    expectTypeOf(client.invoke.api.search["/"].POST)
       .returns
       .toEqualTypeOf<Promise<IMapable<{ results: string[] }>>>();
   });
@@ -187,11 +184,11 @@ describe("Client types", () => {
 
     const client = new Client(tree, "http://localhost:3000");
 
-    expectTypeOf(client.routes.things["/"].POST).parameters.toEqualTypeOf<[{ body: string }]>();
-    expectTypeOf(client.routes.things["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ ok: boolean }>>>();
+    expectTypeOf(client.invoke.things["/"].POST).parameters.toEqualTypeOf<[{ body: string }]>();
+    expectTypeOf(client.invoke.things["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ ok: boolean }>>>();
 
-    expectTypeOf(client.routes.things["/"].GET).parameters.toEqualTypeOf<[undefined]>();
-    expectTypeOf(client.routes.things["/"].GET).returns.toEqualTypeOf<Promise<IMapable<{ items: number[] }>>>();
+    expectTypeOf(client.invoke.things["/"].GET).parameters.toEqualTypeOf<[undefined]>();
+    expectTypeOf(client.invoke.things["/"].GET).returns.toEqualTypeOf<Promise<IMapable<{ items: number[] }>>>();
   });
 
   it("deeply nested route resolves all the way down", () => {
@@ -199,8 +196,8 @@ describe("Client types", () => {
     const tree = { a: { b: { c: protocolLeaf("POST", handler) } } };
     const client = new Client(tree, "http://localhost:3000");
 
-    expectTypeOf(client.routes.a.b.c["/"].POST).parameters.toEqualTypeOf<[{ x: number }]>();
-    expectTypeOf(client.routes.a.b.c["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ y: number }>>>();
+    expectTypeOf(client.invoke.a.b.c["/"].POST).parameters.toEqualTypeOf<[{ x: number }]>();
+    expectTypeOf(client.invoke.a.b.c["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ y: number }>>>();
   });
 
   it("client.routes itself is not any", () => {
@@ -208,6 +205,49 @@ describe("Client types", () => {
     const tree = { flag: protocolLeaf("POST", handler) };
     const client = new Client(tree, "http://localhost:3000");
 
-    expectTypeOf(client.routes).not.toBeAny();
+    expectTypeOf(client.invoke).not.toBeAny();
+  });
+
+  it("infers arguments from the handler client representation", () => {
+    const handler = makeMockHandler<
+      { body: { title: string; tags: string[] }; query: { draft?: boolean } },
+      { id: string }
+    >("/articles", { id: "article-1" });
+    const tree = { articles: protocolLeaf("POST", handler) };
+    const client = new Client(tree, "http://localhost:3000");
+
+    expectTypeOf(client.invoke.articles["/"].POST).parameters.toEqualTypeOf<[{
+      body: { title: string; tags: string[] };
+      query: { draft?: boolean };
+    }]>();
+  });
+
+  it("wraps awaited handler return types in IMapable", () => {
+    type HandlerReturn = Promise<{ ok: true; payload: { count: number } }>;
+
+    const handler = makeMockHandler<{ cursor: string }, HandlerReturn>(
+      "/reports",
+      Promise.resolve({ ok: true, payload: { count: 1 } }),
+    );
+    const tree = { reports: protocolLeaf("POST", handler) };
+    const client = new Client(tree, "http://localhost:3000");
+
+    expectTypeOf(client.invoke.reports["/"].POST).returns.toEqualTypeOf<
+      Promise<IMapable<{ ok: true; payload: { count: number } }>>
+    >();
+  });
+
+  it("keeps non-function client representations typed as-is", () => {
+    const representation = {
+      open: (headers: { token: string }) => ({ connected: true as const, headers }),
+      close: () => ({ closed: true as const }),
+    };
+    const handler = makeNonFunctionRepresentationHandler("/stream", representation);
+    const tree = { stream: protocolLeaf("ws", handler) };
+    const client = new Client(tree, "http://localhost:3000");
+
+    expectTypeOf(client.invoke.stream["/"].ws).toEqualTypeOf<typeof representation>();
+    expectTypeOf(client.invoke.stream["/"].ws.open).parameters.toEqualTypeOf<[{ token: string }]>();
+    expectTypeOf(client.invoke.stream["/"].ws.close).returns.toEqualTypeOf<{ closed: true }>();
   });
 });

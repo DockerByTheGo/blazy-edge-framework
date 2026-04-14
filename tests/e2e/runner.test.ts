@@ -44,12 +44,12 @@ describe("e2e simple app", () => {
         .createClient()
         .createClient()("http://localhost:" + port)
       
-      const httpReq =  (await client.routes.jiji.koko["/"].POST({ koko: "" }))
-      client.routes.rooms["/"].ws.handle["room-joined"](v => {
+      const httpReq =  (await client.invoke.jiji.koko["/"].POST({ koko: "" }))
+      client.invoke.rooms["/"].ws.handle["room-joined"](v => {
 
       })
 
-      client.routes.rooms["/"].ws.send["join-room"]({ roomId: "123" });
+      client.invoke.rooms["/"].ws.send["join-room"]({ roomId: "123" });
 
       
       await new Promise(resolve => setTimeout(resolve, 1000));

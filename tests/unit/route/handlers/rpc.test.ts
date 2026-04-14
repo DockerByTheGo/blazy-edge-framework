@@ -75,8 +75,8 @@ describe("RPC routes", () => {
 
     const client = app.createClient().createClient()("http://localhost:3000");
 
-    expect((client.routes as any).rpc.greet["/"]).toBeDefined();
-    expect((client.routes as any).rpc.greet["/"].POST).toBeDefined();
+    expect((client.invoke as any).rpc.greet["/"]).toBeDefined();
+    expect((client.invoke as any).rpc.greet["/"].POST).toBeDefined();
   });
 
   it("multiple rpc routes do not interfere with each other", () => {

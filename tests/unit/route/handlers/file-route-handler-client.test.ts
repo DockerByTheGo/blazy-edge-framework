@@ -14,7 +14,7 @@ describe("File route handler client surface", () => {
     const app = BlazyConstructor.createEmpty().file(fixturePath, route);
     const client = app.createClient().createClient()("http://localhost:3000");
 
-    const fileClient = client.routes.downloads["mock-route.txt"]["/"].static;
+    const fileClient = client.invoke.downloads["mock-route.txt"]["/"].static;
 
 
     const typedClient: FileClientRepresentation = fileClient;

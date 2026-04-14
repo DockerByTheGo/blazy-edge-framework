@@ -26,8 +26,8 @@ describe("createClient()", () => {
 
     const client = app.createClient().createClient()("http://localhost:3000");
 
-    expect((client.routes as any).api.items["/"]).toBeDefined();
-    expect((client.routes as any).api.items["/"].POST).toBeDefined();
+    expect((client.invoke as any).api.items["/"]).toBeDefined();
+    expect((client.invoke as any).api.items["/"].POST).toBeDefined();
   });
 
   it("client url is forwarded to getClientRepresentation as serverUrl", () => {

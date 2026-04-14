@@ -48,7 +48,7 @@ Name extends string
 , Model
 >(
     name: Name,
-    args: ,
+    args: {},
     model: Model,
     methods: {
         getOne: (query: Partial<Model>) => Model;

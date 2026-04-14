@@ -59,8 +59,8 @@ describe("ClientBuilder", () => {
 
       const client = CleintBuilderConstructors.fromRouteTree(tree).createClient()("http://localhost:3000");
 
-      expect(client.routes.users["/"]).toBeDefined();
-      expect(client.routes.users["/"].POST).toBeDefined();
+      expect(client.invoke.users["/"]).toBeDefined();
+      expect(client.invoke.users["/"].POST).toBeDefined();
     });
 
     it("calling createClient() twice produces independent Client instances", () => {
@@ -90,7 +90,7 @@ describe("ClientBuilder", () => {
         .beforeSend((arg: { name: string }) => ({ ...arg, normalized: true }), "normalize")
         .afterReceive((arg: { response: { body: { ok: boolean } } }) => arg.response.body, "unwrapBody")
         .createClient()("http://localhost:3000");
-      const result = await client.routes.users["/"].POST({ name: "alice" });
+      const result = await client.invoke.users["/"].POST({ name: "alice" });
 
       expect(received).toEqual([{ name: "alice", normalized: true }]);
       expect(result.raw).toEqual({ ok: true });
@@ -111,8 +111,8 @@ describe("ClientBuilder types", () => {
     const client = CleintBuilderConstructors.fromRouteTree(tree).createClient()("http://localhost:3000");
 
     // POST fn arg and return are fully typed
-    expectTypeOf(client.routes.users["/"].POST).parameters.toEqualTypeOf<[{ name: string }]>();
-    expectTypeOf(client.routes.users["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ id: number }>>>();
+    expectTypeOf(client.invoke.users["/"].POST).parameters.toEqualTypeOf<[{ name: string }]>();
+    expectTypeOf(client.invoke.users["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ id: number }>>>();
   });
 
   it("empty builder produces Client<{}>", () => {
