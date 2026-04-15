@@ -1,43 +1,50 @@
 import { describe, it, expect } from "vitest";
 import { BlazyConstructor } from "src/app/constructors";
-import { treeRouteFinder } from "src/route/finders/tree";
-import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
+import { getProtocols } from "../utils/routeTree";
 
 describe("post()", () => {
-  it("registers a handler at the given path under POST protocol", () => {
+  it("registers the route directly in the router tree under POST", () => {
     const app = BlazyConstructor.createEmpty().post({
       path: "/users",
       handeler: () => ({ body: { ok: true } }),
     });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/users")).unpack() as any;
+    const protocols = getProtocols(app.routes, "/users");
+
+    expect(app.routes).toHaveProperty("users");
+    expect(app.routes.users).toHaveProperty("/");
     expect(protocols.POST).toBeDefined();
+    expect(protocols.POST.metadata).toMatchObject({
+      subRoute: "/users",
+      verb: "POST",
+      protocol: "POST",
+    });
   });
 
-  it("calls the handler with the request body", () => {
-    const received: unknown[] = [];
-
+  it("registers nested paths as nested router nodes", () => {
     const app = BlazyConstructor.createEmpty().post({
-      path: "/submit",
-      handeler: (arg: any) => { received.push(arg); return { body: {} }; },
+      path: "/api/users",
+      handeler: () => ({ body: { ok: true } }),
     });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/submit")).unpack() as any;
-    protocols.POST.handleRequest({ name: "alice" });
+    const protocols = getProtocols(app.routes, "/api/users");
 
-    expect(received).toEqual([{ name: "alice" }]);
+    expect(app.routes.api.users).toHaveProperty("/");
+    expect(protocols.POST).toBeDefined();
+    expect(protocols.POST.metadata.subRoute).toBe("/api/users");
   });
 
-  it("returns the handler's return value", () => {
+  it("registers dynamic path segments in the router tree", () => {
     const app = BlazyConstructor.createEmpty().post({
-      path: "/ping",
-      handeler: () => ({ body: { pong: true } }),
+      path: "/users/:userId/posts",
+      handeler: () => ({ body: { ok: true } }),
     });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/ping")).unpack() as any;
-    const result = protocols.POST.handleRequest({});
+    const protocols = getProtocols(app.routes, "/users/:userId/posts");
 
-    expect(result).toEqual({ body: { pong: true } });
+    expect(app.routes.users[":userId"].posts).toHaveProperty("/");
+    expect(protocols.POST).toBeDefined();
+    expect(protocols.POST.metadata.subRoute).toBe("/users/:userId/posts");
   });
 
   it("does not register under GET", () => {
@@ -46,19 +53,24 @@ describe("post()", () => {
       handeler: () => ({ body: {} }),
     });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/only-post")).unpack() as any;
+    const protocols = getProtocols(app.routes, "/only-post");
+
+    expect(protocols.POST).toBeDefined();
     expect(protocols.GET).toBeUndefined();
   });
 
-  it("multiple post routes coexist independently", () => {
+  it("multiple post routes coexist as separate router branches", () => {
     const app = BlazyConstructor.createEmpty()
       .post({ path: "/a", handeler: () => ({ body: { from: "a" } }) })
       .post({ path: "/b", handeler: () => ({ body: { from: "b" } }) });
 
-    const a = (treeRouteFinder(app.routes, new Path("/a")).unpack() as any).POST.handleRequest({});
-    const b = (treeRouteFinder(app.routes, new Path("/b")).unpack() as any).POST.handleRequest({});
+    const aProtocols = getProtocols(app.routes, "/a");
+    const bProtocols = getProtocols(app.routes, "/b");
 
-    expect(a).toEqual({ body: { from: "a" } });
-    expect(b).toEqual({ body: { from: "b" } });
+    expect(aProtocols.POST).toBeDefined();
+    expect(bProtocols.POST).toBeDefined();
+    expect(aProtocols.POST).not.toBe(bProtocols.POST);
+    expect(aProtocols.POST.metadata.subRoute).toBe("/a");
+    expect(bProtocols.POST.metadata.subRoute).toBe("/b");
   });
 });

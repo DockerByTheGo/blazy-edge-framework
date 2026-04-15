@@ -22,7 +22,7 @@ const isRouteHandler = (value: any): value is IRouteHandler<Request, any> => {
 const isProtocolHandlers = (value: any): boolean => {
     if (!value || typeof value !== "object") return false;
     // Check if it contains protocol keys
-    const protocols = ['POST', 'GET', 'PUT', 'DELETE', 'PATCH', 'ws', 'http'];
+    const protocols = ['POST', 'GET', 'PUT', 'DELETE', 'PATCH', 'ws', 'http', 'static'];
     return Object.keys(value).some(key => protocols.includes(key));
 };
 

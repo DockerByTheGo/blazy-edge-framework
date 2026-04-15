@@ -29,8 +29,8 @@ export class FileRouteHandler implements IRouteHandler<
   constructor(filePath: string, route: string) {
     this.resolvedPath = resolveServerFilePath(filePath);
     this.mimeType = guessMimeType(this.resolvedPath);
-    this.fileName = path.basename(this.resolvedPath);
-    this.metadata = { subRoute: route, method: "GET" };
+    this.fileName = path.basename(route);
+    this.metadata = { subRoute: `/static${route}`, method: "GET" };
   }
 
   handleRequest(): URecord {

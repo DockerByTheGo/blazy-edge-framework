@@ -1,12 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { BlazyConstructor } from "src/app/constructors";
-import { treeRouteFinder } from "src/route/finders/tree";
-import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
 import { Message } from "src/route/handlers/variations/websocket/types";
 import z from "zod/v4";
+import { getProtocols } from "../utils/routeTree";
 
 describe("ws()", () => {
-  it("registers a handler at the given path under ws protocol", () => {
+  it("registers the route directly in the router tree under ws", () => {
     const app = BlazyConstructor.createEmpty().ws({
       path: "/chat",
       messages: {
@@ -15,8 +14,12 @@ describe("ws()", () => {
       },
     });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/chat")).unpack() as any;
+    const protocols = getProtocols(app.routes, "/chat");
+
+    expect(app.routes).toHaveProperty("chat");
+    expect(app.routes.chat).toHaveProperty("/");
     expect(protocols.ws).toBeDefined();
+    expect(protocols.ws.metadata.subRoute).toBe("/chat");
   });
 
   it("does not register under POST or GET", () => {
@@ -25,7 +28,9 @@ describe("ws()", () => {
       messages: { messagesItCanRecieve: {}, messagesItCanSend: {} },
     });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/stream")).unpack() as any;
+    const protocols = getProtocols(app.routes, "/stream");
+
+    expect(protocols.ws).toBeDefined();
     expect(protocols.POST).toBeUndefined();
     expect(protocols.GET).toBeUndefined();
   });
@@ -42,17 +47,19 @@ describe("ws()", () => {
       },
     });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/events")).unpack() as any;
+    const protocols = getProtocols(app.routes, "/events");
     expect(protocols.ws.schema.messagesItCanRecieve.ping).toBeDefined();
   });
 
-  it("ws and post on the same path coexist", () => {
+  it("ws and post on the same path coexist in the router tree", () => {
     const app = BlazyConstructor.createEmpty()
       .post({ path: "/dual", handeler: () => ({ body: {} }) })
       .ws({ path: "/dual", messages: { messagesItCanRecieve: {}, messagesItCanSend: {} } });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/dual")).unpack() as any;
+    const protocols = getProtocols(app.routes, "/dual");
+
     expect(protocols.POST).toBeDefined();
     expect(protocols.ws).toBeDefined();
+    expect(protocols.POST).not.toBe(protocols.ws);
   });
 });

@@ -21,4 +21,4 @@ const client = BlazyConstructor
 
 
 
-    client.invoke.hi["/"].GET()
+    client.invoke.hi["/"]

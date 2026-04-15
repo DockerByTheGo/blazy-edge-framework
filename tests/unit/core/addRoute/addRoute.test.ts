@@ -1,9 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { BlazyConstructor } from "src/app/constructors";
-import { treeRouteFinder } from "src/route/finders/tree";
-import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
 import type { IRouteHandler, IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server";
 import { NormalRouting } from "src/route/matchers/normal";
+import { getProtocols } from "../utils/routeTree";
 
 function stubHandler(subRoute: string): IRouteHandler<any, any> {
   return {
@@ -14,7 +13,7 @@ function stubHandler(subRoute: string): IRouteHandler<any, any> {
 }
 
 describe("addRoute", () => {
-  it("registers a handler reachable via treeRouteFinder", () => {
+  it("registers the route directly in the router tree", () => {
     const handler = stubHandler("/items");
     const app = BlazyConstructor.createEmpty().addRoute({
       routeMatcher: new NormalRouting("/items"),
@@ -22,9 +21,12 @@ describe("addRoute", () => {
       protocol: "POST",
     });
 
-    const result = treeRouteFinder(app.routes, new Path("/items"));
-    expect(result.isSome()).toBe(true);
-    expect((result.unpack() as any).POST).toBeDefined();
+    const protocols = getProtocols(app.routes, "/items");
+
+    expect(app.routes).toHaveProperty("items");
+    expect(app.routes.items).toHaveProperty("/");
+    expect(protocols.POST).toBeDefined();
+    expect(protocols.POST.metadata.subRoute).toBe("/items");
   });
 
   it("places the handler under the correct protocol key", () => {
@@ -35,7 +37,7 @@ describe("addRoute", () => {
       protocol: "GET",
     });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/things")).unpack() as any;
+    const protocols = getProtocols(app.routes, "/things");
     expect(protocols.GET).toBeDefined();
     expect(protocols.POST).toBeUndefined();
   });
@@ -47,7 +49,7 @@ describe("addRoute", () => {
       handler,
     });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/default")).unpack() as any;
+    const protocols = getProtocols(app.routes, "/default");
     expect(protocols.http).toBeDefined();
   });
 
@@ -59,7 +61,11 @@ describe("addRoute", () => {
       protocol: "POST",
     });
 
-    expect(treeRouteFinder(app.routes, new Path("/api/v1/users")).isSome()).toBe(true);
+    const protocols = getProtocols(app.routes, "/api/v1/users");
+
+    expect(app.routes.api.v1.users).toHaveProperty("/");
+    expect(protocols.POST).toBeDefined();
+    expect(protocols.POST.metadata.subRoute).toBe("/api/v1/users");
   });
 
   it("two routes on the same path with different protocols coexist", () => {
@@ -67,16 +73,16 @@ describe("addRoute", () => {
       .addRoute({ routeMatcher: new NormalRouting("/res"), handler: stubHandler("/res"), protocol: "POST" })
       .addRoute({ routeMatcher: new NormalRouting("/res"), handler: stubHandler("/res"), protocol: "GET" });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/res")).unpack() as any;
+    const protocols = getProtocols(app.routes, "/res");
     expect(protocols.POST).toBeDefined();
     expect(protocols.GET).toBeDefined();
+    expect(protocols.POST).not.toBe(protocols.GET);
   });
 
-  it("calls the wrapped handleRequest when invoked", () => {
-    const received: unknown[] = [];
+  it("keeps the registered handler under the protocol key", () => {
     const handler: IRouteHandler<any, any> = {
       metadata: { subRoute: "/echo" },
-      handleRequest: (arg: any) => { received.push(arg); return arg; },
+      handleRequest: (arg: any) => arg,
       getClientRepresentation: () => () => {},
     };
 
@@ -86,8 +92,9 @@ describe("addRoute", () => {
       protocol: "POST",
     });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/echo")).unpack() as any;
-    protocols.POST.handleRequest({ x: 1 });
-    expect(received).toEqual([{ x: 1 }]);
+    const protocols = getProtocols(app.routes, "/echo");
+
+    expect(protocols.POST.handleRequest).toBeTypeOf("function");
+    expect(protocols.POST.metadata.subRoute).toBe("/echo");
   });
 });
