@@ -12,7 +12,7 @@ export interface ICrudified<Name extends string>{
 }
 
 
-export type HandlerProtocol = 'POST' | 'GET' | 'PUT' | 'DELETE' | 'PATCH' | 'ws' | 'http';
+export type HandlerProtocol = 'POST' | 'GET' | 'PUT' | 'DELETE' | 'PATCH' | 'ws' | 'http' | 'static';
 
 function CrudifyStrict<Name extends string, Model>(
     name: Name,

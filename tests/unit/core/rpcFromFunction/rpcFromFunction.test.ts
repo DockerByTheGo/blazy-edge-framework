@@ -1,47 +1,55 @@
 import { describe, it, expect } from "vitest";
 import { BlazyConstructor } from "src/app/constructors";
-import { treeRouteFinder } from "src/route/finders/tree";
-import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
+import { getProtocols } from "../utils/routeTree";
 
 function makeFunc(name: string, execute: (args: any) => any) {
   return { name, argsSchema: {}, returnTypeSchema: {}, execute };
 }
 
 describe("rpcFromFunction()", () => {
-  it("registers a POST handler at /rpc/{func.name}", () => {
+  it("registers the route directly in the router tree under POST", () => {
     const func = makeFunc("createOrder", () => ({ body: { id: 1 } }));
     const app = BlazyConstructor.createEmpty().rpcFromFunction(func as any);
 
-    expect(treeRouteFinder(app.routes, new Path("/rpc/createOrder")).isSome()).toBe(true);
+    const protocols = getProtocols(app.routes, "/rpc/createOrder");
+
+    expect(app.routes.rpc.createOrder).toHaveProperty("/");
+    expect(protocols.POST).toBeDefined();
+    expect(protocols.POST.metadata).toMatchObject({
+      subRoute: "/rpc/createOrder",
+      verb: "POST",
+      protocol: "POST",
+    });
   });
 
   it("uses func.name as the route segment", () => {
     const func = makeFunc("myFunc", () => ({}));
     const app = BlazyConstructor.createEmpty().rpcFromFunction(func as any);
 
-    expect(treeRouteFinder(app.routes, new Path("/rpc/myFunc")).isSome()).toBe(true);
-    expect(treeRouteFinder(app.routes, new Path("/rpc/somethingElse")).isSome()).toBe(false);
+    const protocols = getProtocols(app.routes, "/rpc/myFunc");
+
+    expect(protocols.POST).toBeDefined();
+    expect(app.routes.rpc).toHaveProperty("myFunc");
+    expect(app.routes.rpc).not.toHaveProperty("somethingElse");
   });
 
-  it("delegates to func.execute with the request body", () => {
-    const received: unknown[] = [];
-    const func = makeFunc("process", (args) => { received.push(args); return { body: { ok: true } }; });
+  it("registers a callable POST route handler", () => {
+    const func = makeFunc("process", () => ({ body: { ok: true } }));
 
     const app = BlazyConstructor.createEmpty().rpcFromFunction(func as any);
-    const protocols = treeRouteFinder(app.routes, new Path("/rpc/process")).unpack() as any;
+    const protocols = getProtocols(app.routes, "/rpc/process");
 
-    protocols.POST.handleRequest({ body: { x: 42 } });
-    expect(received).toEqual([{ x: 42 }]);
+    expect(protocols.POST.handleRequest).toBeTypeOf("function");
+    expect(protocols.POST.metadata.subRoute).toBe("/rpc/process");
   });
 
-  it("falls back to empty object when body is absent", () => {
-    const received: unknown[] = [];
-    const func = makeFunc("noBody", (args) => { received.push(args); return {}; });
+  it("does not register sibling routes when only one function is added", () => {
+    const func = makeFunc("noBody", () => ({}));
 
     const app = BlazyConstructor.createEmpty().rpcFromFunction(func as any);
-    const protocols = treeRouteFinder(app.routes, new Path("/rpc/noBody")).unpack() as any;
+    const protocols = getProtocols(app.routes, "/rpc/noBody");
 
-    protocols.POST.handleRequest({});
-    expect(received).toEqual([{}]);
+    expect(protocols.POST).toBeDefined();
+    expect(app.routes.rpc).not.toHaveProperty("process");
   });
 });

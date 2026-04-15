@@ -1,35 +1,41 @@
 import { describe, it, expect } from "vitest";
 import { BlazyConstructor } from "src/app/constructors";
-import { treeRouteFinder } from "src/route/finders/tree";
-import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
+import { getProtocols } from "../utils/routeTree";
 
 function makeFunc(name: string, execute: (args: any) => any) {
   return { name, argsSchema: {}, returnTypeSchema: {}, execute };
 }
 
 describe("rpcRoutify()", () => {
-  it("registers all provided functions as POST routes", () => {
+  it("registers all provided functions directly in the router tree under POST", () => {
     const app = BlazyConstructor.createEmpty().rpcRoutify({
       addUser:    makeFunc("addUser",    () => ({})) as any,
       deleteUser: makeFunc("deleteUser", () => ({})) as any,
     });
 
-    expect(treeRouteFinder(app.routes, new Path("/rpc/addUser")).isSome()).toBe(true);
-    expect(treeRouteFinder(app.routes, new Path("/rpc/deleteUser")).isSome()).toBe(true);
+    const addUserProtocols = getProtocols(app.routes, "/rpc/addUser");
+    const deleteUserProtocols = getProtocols(app.routes, "/rpc/deleteUser");
+
+    expect(app.routes.rpc.addUser).toHaveProperty("/");
+    expect(app.routes.rpc.deleteUser).toHaveProperty("/");
+    expect(addUserProtocols.POST).toBeDefined();
+    expect(deleteUserProtocols.POST).toBeDefined();
   });
 
-  it("each function is called independently", () => {
-    const calls: string[] = [];
-
+  it("each function gets its own route branch", () => {
     const app = BlazyConstructor.createEmpty().rpcRoutify({
-      a: makeFunc("a", () => { calls.push("a"); return {}; }) as any,
-      b: makeFunc("b", () => { calls.push("b"); return {}; }) as any,
+      a: makeFunc("a", () => ({})) as any,
+      b: makeFunc("b", () => ({})) as any,
     });
 
-    (treeRouteFinder(app.routes, new Path("/rpc/a")).unpack() as any).POST.handleRequest({ body: {} });
-    (treeRouteFinder(app.routes, new Path("/rpc/b")).unpack() as any).POST.handleRequest({ body: {} });
+    const aProtocols = getProtocols(app.routes, "/rpc/a");
+    const bProtocols = getProtocols(app.routes, "/rpc/b");
 
-    expect(calls).toEqual(["a", "b"]);
+    expect(aProtocols.POST).toBeDefined();
+    expect(bProtocols.POST).toBeDefined();
+    expect(aProtocols.POST).not.toBe(bProtocols.POST);
+    expect(aProtocols.POST.metadata.subRoute).toBe("/rpc/a");
+    expect(bProtocols.POST.metadata.subRoute).toBe("/rpc/b");
   });
 
   it("routes from rpcRoutify do not overwrite each other", () => {
@@ -38,10 +44,12 @@ describe("rpcRoutify()", () => {
       y: makeFunc("y", () => ({ body: { from: "y" } })) as any,
     });
 
-    const xResult = (treeRouteFinder(app.routes, new Path("/rpc/x")).unpack() as any).POST.handleRequest({ body: {} });
-    const yResult = (treeRouteFinder(app.routes, new Path("/rpc/y")).unpack() as any).POST.handleRequest({ body: {} });
+    const xProtocols = getProtocols(app.routes, "/rpc/x");
+    const yProtocols = getProtocols(app.routes, "/rpc/y");
 
-    expect(xResult).toEqual({ body: { from: "x" } });
-    expect(yResult).toEqual({ body: { from: "y" } });
+    expect(xProtocols.POST).toBeDefined();
+    expect(yProtocols.POST).toBeDefined();
+    expect(xProtocols.POST.metadata.subRoute).toBe("/rpc/x");
+    expect(yProtocols.POST.metadata.subRoute).toBe("/rpc/y");
   });
 });

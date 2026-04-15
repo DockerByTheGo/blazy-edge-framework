@@ -1,6 +1,6 @@
 import { RouterObject } from "@blazyts/backend-lib";
 import type { PathStringToObject, RouterHooks, type RouteTree } from "@blazyts/backend-lib/src/core/server/router/types";
-import { type And, type IFunc,  type TypeSafeOmit, type URecord,  } from "@blazyts/better-standard-library";
+import { entries, type And, type IFunc,  type TypeSafeOmit, type URecord,  } from "@blazyts/better-standard-library";
 import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
 import { Hook, Hooks, type HooksDefault } from "@blazyts/backend-lib/src/core/types/Hooks/Hooks";
 import { treeRouteFinder } from "../route/finders";
@@ -299,10 +299,12 @@ export class Blazy<
     THooks
   > {
     const normalizedRoute = normalizeFileRoute(route ?? filePath);
+    const clientRoute = normalizedRoute.replace(/^\/static(?=\/|$)/, "") || "/";
 
     return this.addRoute({
-      routeMatcher: new NormalRouting(normalizedRoute),
-      handler: new FileRouteHandler(filePath, normalizedRoute),
+      routeMatcher: new NormalRouting(clientRoute),
+      handler: new FileRouteHandler(filePath, clientRoute),
+      protocol: "static",
     });
   }
 
@@ -527,8 +529,8 @@ export class Blazy<
     json rpc version of routify
   */
   rpcRoutify<T extends Record<string, IFunc<string, any, any>>>(funcs: T): this {
-    return objectEntries(funcs).reduce(
-      (app, [name, func]) => app.rpcFromFunction(name as string, func),
+    return entries(funcs).reduce(
+      (app, [, func]) => app.rpcFromFunction(func),
       this as this,
     );
   }
@@ -555,8 +557,21 @@ export class Blazy<
   */
   rpcFromFunction<
     TFunc extends IFunc<string, any, any>,
-  >( func: TFunc) {
-    const subRoute = `/rpc/${func.name}`;
+  >(func: TFunc): this;
+  rpcFromFunction<
+    TName extends string,
+    TFunc extends IFunc<string, any, any>,
+  >(name: TName, func: TFunc): this;
+  rpcFromFunction<
+    TFunc extends IFunc<string, any, any>,
+  >(nameOrFunc: string | TFunc, maybeFunc?: TFunc) {
+    const func = typeof nameOrFunc === "string" ? maybeFunc : nameOrFunc;
+    if (!func) {
+      throw new Error("rpcFromFunction requires a function definition.");
+    }
+
+    const routeName = typeof nameOrFunc === "string" ? nameOrFunc : func.name;
+    const subRoute = `/rpc/${routeName}`;
     return this.post({
       handeler: (ctx: { body?: Parameters<TFunc["execute"]>[0] }) => {
         const args = ctx.body ?? ({} as Parameters<TFunc["execute"]>[0]);

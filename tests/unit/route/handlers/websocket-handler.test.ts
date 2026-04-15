@@ -4,6 +4,7 @@ import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Pat
 import { WebsocketRouteHandler } from "src/route/handlers/variations/websocket";
 import { Message } from "src/route/handlers/variations/websocket/types";
 import { BlazyConstructor } from "src/app/constructors";
+import { treeRouteFinder } from "src/route/finders/tree";
 
 describe("WebsocketRouteHandler (bun)", () => {
     const newMEssageSchema = z.object({ name: z.string(), password: z.string() })

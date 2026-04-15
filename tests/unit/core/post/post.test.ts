@@ -1,16 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { BlazyConstructor } from "src/app/constructors";
-
-const getRouteNode = (routes: Record<string, any>, path: string) => {
-  return path
-    .split("/")
-    .filter(Boolean)
-    .reduce((node, segment) => node?.[segment], routes);
-};
-
-const getProtocols = (routes: Record<string, any>, path: string) => {
-  return getRouteNode(routes, path)?.["/"];
-};
+import { getProtocols } from "../utils/routeTree";
 
 describe("post()", () => {
   it("registers the route directly in the router tree under POST", () => {
