@@ -1,10 +1,11 @@
-import type { IRouteHandler } from "@blazyts/backend-lib/src/core/server/router/routeHandler";
 import type { IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server";
+import type { IRouteHandler } from "@blazyts/backend-lib/src/core/server/router/routeHandler";
 import type { URecord } from "@blazyts/better-standard-library";
+
 import fs from "node:fs";
 import path from "node:path";
-import { guessMimeType, resolveServerFilePath } from "./utils";
 
+import { guessMimeType, resolveServerFilePath } from "./utils";
 
 export type FileClientRepresentation = {
   type: "file";
@@ -49,7 +50,8 @@ export class FileRouteHandler implements IRouteHandler<
           "content-disposition": `inline; filename="${this.fileName}"`,
         },
       }) as unknown as URecord;
-    } catch (error) {
+    }
+    catch (error) {
       if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
         return this.createNotFoundResponse();
       }

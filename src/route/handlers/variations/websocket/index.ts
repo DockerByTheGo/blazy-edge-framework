@@ -1,7 +1,9 @@
-export { WebsocketRouteHandler } from "./WebsocketRouteHandler";
+export { Message } from "./types";
 export type {
-    WebSocketMessage,
-    WebSocketResponse,
-    WebSocketConnection,
-    WebSocketContext
+  Schema,
+  WebSocketConnection,
+  WebSocketContext,
+  WebSocketMessage,
+  WebSocketResponse,
 } from "./types";
+export { WebsocketRouteHandler } from "./WebsocketRouteHandler";

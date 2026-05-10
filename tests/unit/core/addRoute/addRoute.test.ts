@@ -1,7 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { BlazyConstructor } from "src/app/constructors";
 import type { IRouteHandler, IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server";
+
+import { describe, expect, it } from "vitest";
+
+import { BlazyConstructor } from "src/app/constructors";
 import { NormalRouting } from "src/route/matchers/normal";
+
 import { getProtocols } from "../utils/routeTree";
 
 function stubHandler(subRoute: string): IRouteHandler<any, any> {

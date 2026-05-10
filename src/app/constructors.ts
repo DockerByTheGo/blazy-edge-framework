@@ -1,10 +1,11 @@
 import { Hooks } from "@blazyts/backend-lib";
-import { Blazy } from "./core";
+
 import { treeRouteFinder } from "src/route/finders";
 
-export class BlazyConstructor {
+import { Blazy } from "./core";
 
-    static createEmpty(): Blazy<{},{
+export class BlazyConstructor {
+  static createEmpty(): Blazy<{}, {
   }> {
     return new Blazy({
       beforeHandler: Hooks.empty(),
@@ -13,23 +14,17 @@ export class BlazyConstructor {
       onStartup: Hooks.empty(),
       onShutdown: Hooks.empty(),
 
-    }, 
-    {} as any,
-     treeRouteFinder
-    )
+    }, {} as any, treeRouteFinder);
     // .addService(CACHE_SERVICE_NAME, new CacheService())
     // .addService("logger", new LoggerService(new ConsoleLogSaver()))
     // .beforeRequestHandler("log", ctx => )
   }
 
   static createProd() {
-    const app =  BlazyConstructor 
-      .createEmpty()
-     
-      
+    const app = BlazyConstructor
+      .createEmpty();
 
-      return app
-      .beforeRequestHandler("attach", ctx => ({...ctx as {reqData: RequestData}, services: {...app.services.services, mamanger: app.services }}))
-
+    return app
+      .beforeRequestHandler("attach", ctx => ({ ...ctx as { reqData: RequestData }, services: { ...app.services.services, mamanger: app.services } }));
   }
 }

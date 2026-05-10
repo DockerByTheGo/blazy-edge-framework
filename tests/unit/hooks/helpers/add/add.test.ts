@@ -1,4 +1,5 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
+
 import { add } from "src/hooks/add";
 
 describe("add function", () => {

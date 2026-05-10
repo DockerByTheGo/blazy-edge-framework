@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+
 import { BlazyConstructor } from "src/app/constructors";
+
 import { getProtocols } from "../utils/routeTree";
 
 function makeFunc(name: string, execute: (args: any) => any) {

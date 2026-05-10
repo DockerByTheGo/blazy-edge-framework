@@ -27,19 +27,19 @@ const MIME_TYPES: Record<string, string> = {
   ".mp4": "video/mp4",
 };
 
-const sanitizeRouteSegments = (route: string) => {
+function sanitizeRouteSegments(route: string) {
   const normalized = route.replace(/\\/g, "/");
   const segments = normalized
     .split("/")
     .map(segment => segment.trim())
     .filter(segment => segment.length > 0 && segment !== ".");
 
-  if (segments.some(segment => segment === "..")) {
+  if (segments.includes("..")) {
     throw new Error("File routes may not contain '..' segments");
   }
 
   return segments;
-};
+}
 
 export function normalizeFileRoute(route: string): string {
   const segments = sanitizeRouteSegments(route);

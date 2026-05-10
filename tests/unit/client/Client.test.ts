@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, expectTypeOf } from "vitest";
-import { Client } from "src/client/Client";
 import type { IRouteHandler, IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server";
 import type { IMapable } from "@blazyts/better-standard-library";
+
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
+
+import { Client } from "src/client/Client";
 
 // Client spreads extra fields (path, verb, …) on top of IRouteHandlerMetadata at runtime
 type RuntimeMeta = IRouteHandlerMetadata & Record<string, unknown>;
@@ -26,7 +28,7 @@ function makeMockHandler<TArg, TReturn>(
     getClientRepresentation: (_meta: RuntimeMeta): ClientFn => {
       Object.assign(clientFn, {
         method: "post",
-        path: _meta["path"] ?? subRoute,
+        path: _meta.path ?? subRoute,
         metadata: _meta,
       });
       return clientFn;
@@ -65,7 +67,7 @@ function protocolLeaf<
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
-describe("Client", () => {
+describe("client", () => {
   it("exposes a route at the correct nested path", () => {
     const handler = makeMockHandler<{ name: string }, { id: number }>("/api/users", { id: 1 });
     const tree = { api: { users: protocolLeaf("POST", handler) } };
@@ -76,10 +78,7 @@ describe("Client", () => {
     // (arg: { name: string }) => Promise<{ id: number }>
     expect(client.invoke.api.users["/"]).toBeDefined();
     expect(client.invoke.api.users["/"].POST).toBeDefined();
-    
   });
-
-
 
   it("the client fn is callable and returns the mocked response", async () => {
     const handler = makeMockHandler<{ qty: number }, { created: boolean }>("/orders", { created: true });
@@ -95,7 +94,7 @@ describe("Client", () => {
 
   it("multiple protocols on the same path are both built", () => {
     const postHandler = makeMockHandler<{ body: string }, { ok: boolean }>("/things", { ok: true });
-    const getHandler  = makeMockHandler<void, { items: string[] }>("/things", { items: [] });
+    const getHandler = makeMockHandler<void, { items: string[] }>("/things", { items: [] });
 
     const tree = {
       things: {
@@ -137,15 +136,15 @@ describe("Client", () => {
     const tree = { deep: { route: protocolLeaf("POST", handler) } };
     new Client(tree, "http://localhost:3000");
 
-    expect(receivedMeta[0]!["path"]).toBe("/deep/route");
+    expect(receivedMeta[0]!.path).toBe("/deep/route");
   });
 });
 
 // ---------------------------------------------------------------------------
 // Type-level tests – these are compile-time only, no runtime assertions needed
 // ---------------------------------------------------------------------------
-describe("Client types", () => {
-  it("POST route is typed as a callable fn with the correct arg and return", () => {
+describe("client types", () => {
+  it("pOST route is typed as a callable fn with the correct arg and return", () => {
     const handler = makeMockHandler<{ name: string }, { id: number }>("/users", { id: 1 });
     const tree = { users: protocolLeaf("POST", handler) };
     const client = new Client(tree, "http://localhost:3000");
@@ -172,7 +171,7 @@ describe("Client types", () => {
 
   it("two protocols on the same path have independent types", () => {
     const postHandler = makeMockHandler<{ body: string }, { ok: boolean }>("/things", { ok: true });
-    const getHandler  = makeMockHandler<undefined, { items: number[] }>("/things", { items: [] });
+    const getHandler = makeMockHandler<undefined, { items: number[] }>("/things", { items: [] });
 
     const tree = {
       things: {

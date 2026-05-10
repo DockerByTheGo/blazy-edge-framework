@@ -1,6 +1,8 @@
-import { describe, it, expect } from "bun:test";
 import type { RouteTree } from "@blazyts/backend-lib/src/core/server/router/types";
+
 import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
+import { describe, expect, it } from "bun:test";
+
 import { treeRouteFinder } from "src/route/finders";
 
 describe("Tree Route Finder with Protocols", () => {
@@ -46,7 +48,7 @@ describe("Tree Route Finder with Protocols", () => {
     const path = new Path("/chat");
     const result = treeRouteFinder(routes, path);
 
-    console.log("kook", result)
+    console.log("kook", result);
     expect(result.isSome()).toBe(true);
     const handlers = result.unpack().valueOf();
     expect(handlers.ws).toBeDefined();
@@ -80,7 +82,7 @@ describe("Tree Route Finder with Protocols", () => {
   it("should prefer static routes over dynamic", () => {
     const routes: RouteTree = {
       users: {
-        admin: {
+        "admin": {
           "/": {
             GET: { handleRequest: () => "admin user", getClientRepresentation: undefined as any, metadata: {} },
           },

@@ -1,10 +1,11 @@
+import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
 import { describe, expect, it } from "vitest";
+
 import { BlazyConstructor } from "src/app/constructors";
 import { HtmlResponse, JsonResponse, TextResponse } from "src/response";
 import { treeRouteFinder } from "src/route/finders/tree";
-import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
 
-describe("HTTP handlers", () => {
+describe("hTTP handlers", () => {
   it("registers and resolves a GET handler on a hardcoded path", () => {
     const app = BlazyConstructor.createEmpty().get({
       path: "/health",

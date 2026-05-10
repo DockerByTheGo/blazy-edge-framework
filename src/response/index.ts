@@ -1,10 +1,6 @@
 type ResponseBody = BodyInit | null;
 
-const withDefaultHeader = (
-  init: ResponseInit | undefined,
-  name: string,
-  value: string,
-): ResponseInit => {
+function withDefaultHeader(init: ResponseInit | undefined, name: string, value: string): ResponseInit {
   const headers = new Headers(init?.headers);
 
   if (!headers.has(name)) {
@@ -15,19 +11,20 @@ const withDefaultHeader = (
     ...init,
     headers,
   };
-};
+}
 
-export const HtmlResponse = (html: BodyInit, init?: ResponseInit): Response =>
-  new Response(
+export function HtmlResponse(html: BodyInit, init?: ResponseInit): Response {
+  return new Response(
     html,
     withDefaultHeader(init, "content-type", "text/html; charset=utf-8"),
   );
-  
+}
+
 /*
-like the html response but adds the body and doctype fields by default 
+like the html response but adds the body and doctype fields by default
 */
-export const HtmlPageResponse = (html: string): Response =>
-  new Response(`<!DOCTYPE html>
+export function HtmlPageResponse(html: string): Response {
+  return new Response(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -42,30 +39,33 @@ export const HtmlPageResponse = (html: string): Response =>
       "Content-Type": "text/html; charset=utf-8",
     },
   });
-export const HtmlFileResponse = (filePath: string, init?: ResponseInit): Response =>
-  HtmlResponse(Bun.file(filePath), init);
+}
+export function HtmlFileResponse(filePath: string, init?: ResponseInit): Response {
+  return HtmlResponse(Bun.file(filePath), init);
+}
 
-export const JsonResponse = (data: unknown, init?: ResponseInit): Response =>
-  new Response(
+export function JsonResponse(data: unknown, init?: ResponseInit): Response {
+  return new Response(
     JSON.stringify(data) ?? "null",
     withDefaultHeader(init, "content-type", "application/json; charset=utf-8"),
   );
+}
 
-export const TextResponse = (text: string, init?: ResponseInit): Response =>
-  new Response(
+export function TextResponse(text: string, init?: ResponseInit): Response {
+  return new Response(
     text,
     withDefaultHeader(init, "content-type", "text/plain; charset=utf-8"),
   );
+}
 
-export const ResponseWithBody = (
-  body: ResponseBody,
-  init?: ResponseInit,
-): Response => new Response(body, init);
+export function ResponseWithBody(body: ResponseBody, init?: ResponseInit): Response {
+  return new Response(body, init);
+}
 
-export const EmptyResponse = (init?: ResponseInit): Response =>
-  new Response(null, init);
+export function EmptyResponse(init?: ResponseInit): Response {
+  return new Response(null, init);
+}
 
-export const RedirectResponse = (
-  url: string | URL,
-  status: 301 | 302 | 303 | 307 | 308 = 302,
-): Response => Response.redirect(url, status);
+export function RedirectResponse(url: string | URL, status: 301 | 302 | 303 | 307 | 308 = 302): Response {
+  return Response.redirect(url, status);
+}

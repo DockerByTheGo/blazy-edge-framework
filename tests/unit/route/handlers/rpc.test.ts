@@ -1,7 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
+import { describe, expect, it } from "vitest";
+
 import { BlazyConstructor } from "src/app/constructors";
 import { treeRouteFinder } from "src/route/finders/tree";
-import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
 
 // Minimal IFunc-shaped object the rpc methods expect
 function makeFunc(name: string, onExecute: (args: unknown) => unknown) {
@@ -13,7 +14,7 @@ function makeFunc(name: string, onExecute: (args: unknown) => unknown) {
   };
 }
 
-describe("RPC routes", () => {
+describe("rPC routes", () => {
   it("rpcFromFunction registers a handler at POST /rpc/{name} and calls execute with body", () => {
     const received: unknown[] = [];
     const func = makeFunc("internalName", (args) => {
@@ -84,8 +85,8 @@ describe("RPC routes", () => {
     const bResult = { body: { from: "b" } };
 
     const app = BlazyConstructor.createEmpty()
-      .rpcFromFunction( makeFunc("a", () => aResult) as any)
-      .rpcFromFunction( makeFunc("b", () => bResult) as any);
+      .rpcFromFunction(makeFunc("a", () => aResult) as any)
+      .rpcFromFunction(makeFunc("b", () => bResult) as any);
 
     const aProto = treeRouteFinder(app.routes, new Path("/rpc/a")).unpack() as any;
     const bProto = treeRouteFinder(app.routes, new Path("/rpc/b")).unpack() as any;

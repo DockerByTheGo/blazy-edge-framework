@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+
 import { BlazyConstructor } from "src/app/constructors";
+
 import { getProtocols } from "../utils/routeTree";
 
 function makeFunc(name: string, execute: (args: any) => any) {
@@ -9,7 +11,7 @@ function makeFunc(name: string, execute: (args: any) => any) {
 describe("rpcRoutify()", () => {
   it("registers all provided functions directly in the router tree under POST", () => {
     const app = BlazyConstructor.createEmpty().rpcRoutify({
-      addUser:    makeFunc("addUser",    () => ({})) as any,
+      addUser: makeFunc("addUser", () => ({})) as any,
       deleteUser: makeFunc("deleteUser", () => ({})) as any,
     });
 

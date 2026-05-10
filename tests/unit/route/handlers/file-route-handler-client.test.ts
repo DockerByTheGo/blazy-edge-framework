@@ -1,8 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { fileURLToPath } from "node:url";
-import { BlazyConstructor } from "src/app/constructors";
+
 import type { FileClientRepresentation } from "src/route/handlers/variations/file/File";
 
+import { BlazyConstructor } from "src/app/constructors";
 
 describe("File route handler client surface", () => {
   it("provides a typed http handler for downloading files", () => {
@@ -15,7 +16,6 @@ describe("File route handler client surface", () => {
     const client = app.createClient().createClient()("http://localhost:3000");
 
     const fileClient = client.invoke.downloads["mock-route.txt"]["/"].static;
-
 
     const typedClient: FileClientRepresentation = fileClient;
 

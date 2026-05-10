@@ -1,2 +1,1 @@
-
-export * from "./SimpleRouteHandler"
+export * from "./SimpleRouteHandler";

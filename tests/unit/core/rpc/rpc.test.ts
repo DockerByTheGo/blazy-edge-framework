@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+
 import { BlazyConstructor } from "src/app/constructors";
+
 import { getProtocols } from "../utils/routeTree";
 
 describe("rpc()", () => {
@@ -36,7 +38,7 @@ describe("rpc()", () => {
   it("two rpc routes do not collide in the router tree", () => {
     const app = BlazyConstructor.createEmpty()
       .rpc({ name: "alpha", handler: () => ({ body: { r: "alpha" } }) })
-      .rpc({ name: "beta",  handler: () => ({ body: { r: "beta" } }) });
+      .rpc({ name: "beta", handler: () => ({ body: { r: "beta" } }) });
 
     const alphaProtocols = getProtocols(app.routes, "/rpc/alpha");
     const betaProtocols = getProtocols(app.routes, "/rpc/beta");

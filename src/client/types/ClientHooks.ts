@@ -1,5 +1,6 @@
-import { type Hook, Hooks } from "@blazyts/backend-lib";
+import type { Hook } from "@blazyts/backend-lib";
 
+import { Hooks } from "@blazyts/backend-lib";
 
 export type ClientHooks = {
   beforeSend: Hooks<Hook<string, (arg: unknown) => unknown>[]>;

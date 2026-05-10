@@ -1,61 +1,66 @@
-import { RouterObject } from "@blazyts/backend-lib";
-import type { PathStringToObject, RouterHooks, type RouteTree } from "@blazyts/backend-lib/src/core/server/router/types";
-import { entries, type And, type IFunc,  type TypeSafeOmit, type URecord,  } from "@blazyts/better-standard-library";
-import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
-import { Hook, Hooks, type HooksDefault } from "@blazyts/backend-lib/src/core/types/Hooks/Hooks";
-import { treeRouteFinder } from "../route/finders";
-import z from "zod/v4";
-import { CleintBuilderConstructors, ClientBuilder } from "../client/client-builder/clientBuilder";
 import type { IRouteHandler, RouteFinder } from "@blazyts/backend-lib/src/core/server";
-import type { HandlerProtocol } from "../types";
-import type { Service, ServiceBase } from "../services/main/Service";
-import { NormalRouting } from "src/route/matchers/normal";
-import { normalizeFileRoute } from "src/route/handlers/variations/file/utils";
-import { FileRouteHandler } from "src/route/handlers/variations/file/File";
-import { WebsocketRouteHandler } from "src/route/handlers/variations/websocket";
-import { NormalRouteHandler } from "src/route/handlers";
+import type { PathStringToObject, RouterHooks, type RouteTree } from "@blazyts/backend-lib/src/core/server/router/types";
+import type { Hook, Hooks, HooksDefault } from "@blazyts/backend-lib/src/core/types/Hooks/Hooks";
+import type { And, IFunc, TypeSafeOmit, URecord } from "@blazyts/better-standard-library";
+import type z from "zod/v4";
+
+import { RouterObject } from "@blazyts/backend-lib";
+import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
+import { entries } from "@blazyts/better-standard-library";
+
+import type { HttpVerbHandlerCtx } from "src/route/handlers";
 import type { Schema } from "src/route/handlers/variations/websocket/types";
-import { ServiceManager } from "src/services/main";
 import type { ExtractParams } from "src/route/matchers/dsl/types/extractParams";
-import { DSLRouting } from "src/route/matchers/dsl/main";
-import { app } from "@test/e2e/server";
+
 import { HtmlFileResponse, HtmlResponse, JsonResponse } from "src/response";
+import { HttpVerbHandler } from "src/route/handlers";
+import { FileRouteHandler } from "src/route/handlers/variations/file/File";
+import { normalizeFileRoute } from "src/route/handlers/variations/file/utils";
+import { WebsocketRouteHandler } from "src/route/handlers/variations/websocket";
+import { DSLRouting } from "src/route/matchers/dsl/main";
+import { NormalRouting } from "src/route/matchers/normal";
+import { ServiceManager } from "src/services/main";
+
+import type { ClientBuilder } from "../client/client-builder/clientBuilder";
+import type { Service, ServiceBase } from "../services/main/Service";
+import type { HandlerProtocol } from "../types";
+
+import { CleintBuilderConstructors } from "../client/client-builder/clientBuilder";
+import { treeRouteFinder } from "../route/finders";
+
 const FILE_SAVER_SERVICE_NAME = "fileSaver";
 const CACHE_SERVICE_NAME = "cache";
 
-type EmptyHooks = ReturnType<typeof Hooks.empty>
-const subAppTypes = ["contained", "applyToParent", "global"] as const
-type SubAppTypes = (typeof subAppTypes)[number]
+type EmptyHooks = ReturnType<typeof Hooks.empty>;
+const subAppTypes = ["contained", "applyToParent", "global"] as const;
+type SubAppTypes = (typeof subAppTypes)[number];
 
 export class Blazy<
   TRouterTree extends RouteTree,
   THooks extends RouterHooks,
-  Tservices extends Record<string, Service<ServiceBase<URecord>>> = {}
+  Tservices extends Record<string, Service<ServiceBase<URecord>>> = {},
+  TDCtx extends Tservices & THooks["beforeHandler"]["TGetLastHookReturnType"] = Tservices & THooks["beforeHandler"]["TGetLastHookReturnType"],
 > extends RouterObject<{
-  beforeHandler: EmptyHooks,
-  afterHandler: EmptyHooks,
-  onError: EmptyHooks,
-  onStartup: EmptyHooks,
-  onShutdown: EmptyHooks
+    beforeHandler: EmptyHooks;
+    afterHandler: EmptyHooks;
+    onError: EmptyHooks;
+    onStartup: EmptyHooks;
+    onShutdown: EmptyHooks;
 
-}, TRouterTree> {
-  public services: ServiceManager;
-
-
+  }, TRouterTree> {
+  public services: ServiceManager<Tservices>;
 
   constructor(
     routerHooks: THooks,
     routes: TRouterTree,
-    routeFinder: RouteFinder<any>
+    routeFinder: RouteFinder<any>,
   ) {
     super(
-      routerHooks
-      ,
+      routerHooks,
       routes ?? {},
-      routeFinder ?? treeRouteFinder
+      routeFinder ?? treeRouteFinder,
     );
     this.services = new ServiceManager();
-
   }
 
   /**
@@ -68,13 +73,14 @@ export class Blazy<
     TProtocol extends HandlerProtocol,
     TLocalHooks extends Record<string, any> | undefined = undefined,
   >(v: {
-    routeMatcher: { getRouteString(): TPath },
-    handler: THandler,
-    hooks?: TLocalHooks,
-    protocol?: TProtocol
-  }): Blazy<
-    TRouterTree &
-    PathStringToObject<
+    routeMatcher: { getRouteString: () => TPath };
+    handler: THandler;
+    hooks?: TLocalHooks;
+    protocol?: TProtocol;
+  },
+  ): Blazy<
+    TRouterTree
+    & PathStringToObject<
       TPath,
       THandler,
       TProtocol
@@ -104,24 +110,25 @@ export class Blazy<
     const modifiedHandler: any = {
       ...v.handler,
       getClientRepresentation: v.handler.getClientRepresentation,
-      handleRequest: arg => {
+      handleRequest: (arg) => {
         try {
           return v.handler.handleRequest(arg);
-        } catch (e) {
+        }
+        catch (e) {
           if (v.hooks?.onError) {
             return v.hooks.onError(e);
           }
           throw e;
         }
-      }
+      },
     };
 
-    const protocol = v.protocol || 'http';
+    const protocol = v.protocol || "http";
     current["/"][protocol] = modifiedHandler;
 
-    return new Blazy(this.routerHooks, newRoutes, this.routeFinder,) as unknown as Blazy<
-      TRouterTree &
-      PathStringToObject<
+    return new Blazy(this.routerHooks, newRoutes, this.routeFinder) as unknown as Blazy<
+      TRouterTree
+      & PathStringToObject<
         TPath,
         THandler,
         TProtocol
@@ -138,11 +145,10 @@ export class Blazy<
    * @param name - The name of the service.
    * @param v - The service object containing functions.
    */
-  addService<TName extends string, TService extends ServiceBase<URecord>>(name: TName, v: TService) {
-    this.services.addService({name, service: v});
-    return this 
+  addService<TName extends string, TService extends ServiceBase<URecord>>(name: TName, v: TService): Blazy<TRouterTree, THooks, Tservices & { [key in TName]: TService }> {
+    this.services.addService({ name, service: v });
+    return this;
   }
-
 
   /**
    * Sets up pre-authentication logic.
@@ -159,31 +165,32 @@ export class Blazy<
     return this;
   }
 
-
   beforeRequestHandler<
     TReturn,
-    TName extends string>(
-      name: TName,
-      func: (arg: THooks["beforeHandler"]["TGetLastHookReturnType"]) => TReturn,
+    TName extends string,
+  >(
+    name: TName,
+    func: (arg: THooks["beforeHandler"]["TGetLastHookReturnType"]) => TReturn,
 
-    ): Blazy<
-      TRouterTree,
-      And<[
-        TypeSafeOmit<THooks, "beforeHandler">,
-        {
-          beforeHandler: Hooks<[
-            ...THooks["beforeHandler"]["v"],
-            Hook<
-              TName,
-              (arg: THooks["beforeHandler"]["TGetLastHookReturnType"]) => TReturn
-            >
-          ]>
-        }
-      ]>
-    > {
-    this.beforeHandler({ name, handler: func })
-    return this
+  ): Blazy<
+    TRouterTree,
+    And<[
+      TypeSafeOmit<THooks, "beforeHandler">,
+      {
+        beforeHandler: Hooks<[
+          ...THooks["beforeHandler"]["v"],
+          Hook<
+            TName,
+            (arg: THooks["beforeHandler"]["TGetLastHookReturnType"]) => TReturn
+          >,
+        ]>;
+      },
+    ]>
+  > {
+    this.beforeHandler({ name, handler: func });
+    return this;
   }
+
   /**
    * Handles logic after a request handler has been executed but before sending the response.
    * @param ctx - The request context.
@@ -227,34 +234,32 @@ export class Blazy<
     TArgs extends z.ZodObject | undefined,
     TPath extends string,
   >(v: {
-    handler: THandler,
-    args: TArgs,
-    path: TPath
-  }) {
+    handler: THandler;
+    args: TArgs;
+    path: TPath;
+  },
+  ) {
   }
 
   routifyRpc() { }
 
-  // allows you to call multiple methods on the app while using the app object, this allosws for use cases where you may need to access the app object but do not wanna breake method chaining for example 
+  // allows you to call multiple methods on the app while using the app object, this allosws for use cases where you may need to access the app object but do not wanna breake method chaining for example
   /*
-  
+
     const app = new Blazy().addRoute().addRoute().block(console.log)
-  
-    // without it you will have to break the method chaining to console log at this current point since yeah you could at thend but then it will also have applied methods which you do not wanna observer 
+
+    // without it you will have to break the method chaining to console log at this current point since yeah you could at thend but then it will also have applied methods which you do not wanna observer
   */
 
-
-
-
   block<TReturn extends Blazy>(func: (app: this) => TReturn): TReturn {
-    return func(this)
-   }
+    return func(this);
+  }
 
   /**
    * Adds a simple route for a function with schema validation.
    * Creates an RPC-style route at `/rpc/{functionName}` that validates the request body
    * against the function's argument schema and executes the function.
-   * the idea is that if you already have a function defined somewhere wjhich you want to quickly expose to use that, but if you are gonna be writing the func inside the router just use the http methoid which offers a much more elegant api for 
+   * the idea is that if you already have a function defined somewhere wjhich you want to quickly expose to use that, but if you are gonna be writing the func inside the router just use the http methoid which offers a much more elegant api for
    * @param func - The function to add as a route.
    * @template TFunc - The type of the function.
    */
@@ -283,13 +288,12 @@ export class Blazy<
   //   });
   // }
 
-
   // by default it uses the file name (or provided route) as the exposed route
   file<
-    TPath extends string
+    TPath extends string,
   >(
     filePath: string,
-    route?: TPath
+    route?: TPath,
   ): Blazy<
     TRouterTree & PathStringToObject<
       TPath,
@@ -310,23 +314,21 @@ export class Blazy<
 
   http<
     TPath extends string,
-    Thandler extends (arg: Args extends null ? URecord : Args
+    Thandler extends (arg: Args extends null ? URecord : Args,
     ) => unknown,
     TProtocol extends HandlerProtocol,
     Args extends z.ZodObject | null = null,
   >(v: {
-    path: TPath,
-    handler: Thandler,
-    args?: Args,
-    meta?: URecord & { protocol?: TProtocol },
-    cache?: CacheHandlerConfig<
-      Parameters<Thandler>[0] extends URecord ? Parameters<Thandler>[0] : URecord
-    >
-  }): Blazy<
-    TRouterTree &
-    PathStringToObject<
+    path: TPath;
+    handler: Thandler;
+    args?: Args;
+    meta?: URecord & { protocol?: TProtocol };
+  },
+  ): Blazy<
+    TRouterTree
+    & PathStringToObject<
       TPath,
-      NormalRouteHandler<
+      HttpVerbHandler<
         Parameters<Thandler>[0],
         ReturnType<Thandler>
       >,
@@ -335,7 +337,7 @@ export class Blazy<
     THooks
   > {
     const metadata = { subRoute: v.path, ...v.meta };
-    const protocol = (v.meta?.protocol as TProtocol) || ('http' as TProtocol);
+    const protocol = (v.meta?.protocol as TProtocol) || ("http" as TProtocol);
     const cacheService = this.services.getService<CacheService>(CACHE_SERVICE_NAME);
     type HandlerArg = Parameters<Thandler>[0] extends URecord ? Parameters<Thandler>[0] : URecord;
     const cacheConfig = v.cache;
@@ -348,7 +350,8 @@ export class Blazy<
 
       try {
         return JSON.stringify(value);
-      } catch {
+      }
+      catch {
         return String(value);
       }
     };
@@ -379,7 +382,7 @@ export class Blazy<
       return executeHandler(arg as HandlerArg) as ReturnType<Thandler>;
     };
 
-    const finalHandler = new NormalRouteHandler(handlerFn, metadata);
+    const finalHandler = new HttpVerbHandler(handlerFn, metadata);
     if (shouldUseCache && cacheService) {
       cacheService.registerHandler(handlerId, finalHandler);
     }
@@ -391,95 +394,92 @@ export class Blazy<
     });
   }
 
-  // note if you try to introduce optional param it will lead to weird behaviour where it  creates two paths for one added handler one which is [''] and the other is the desried 
+  // note if you try to introduce optional param it will lead to weird behaviour where it  creates two paths for one added handler one which is [''] and the other is the desried
   post<
-    THandler extends (arg: (TArgs extends undefined ? URecord : z.infer<TArgs>) & ExtractParams<TPath>) => unknown,
+    // THandler extends (arg: (TArgs extends undefined ? URecord : z.infer<TArgs>) & ExtractParams<TPath>) => unknown,
+    THandler extends HttpVerbHandler<HttpVerbHandlerCtx<TDCtx>>,
     TArgs extends z.ZodObject | undefined,
     TPath extends string,
   >(config: {
-    path: TPath,
-    handeler: THandler,
-    args?: TArgs,
-    cache?: CacheHandlerConfig<Parameters<THandler>[0]>
-  }): Blazy<
-    TRouterTree &
-    PathStringToObject<
+    path: TPath;
+    handeler: THandler;
+    args?: TArgs;
+  },
+  ): Blazy<
+    TRouterTree
+    & PathStringToObject<
       TPath,
-      NormalRouteHandler<
+      HttpVerbHandler<
         Parameters<THandler>[0],
         ReturnType<THandler>
       >,
-      'POST'
+      "POST"
     >,
     THooks
   > {
     // (this.services.services.cache as CacheService).registerHandler(`POST:${config.path}`, new NormalRouteHandler(config.handeler, { subRoute: config.path, verb: "POST", protocol: "POST" }))
-    return this.http<TPath, THandler, any, 'POST'>({
+    return this.http<TPath, THandler, any, "POST">({
       path: config.path,
       handler: v => config.handeler(v),
       meta: { verb: "POST", protocol: "POST" as const },
       cache: config.cache,
-    })
-
+    });
   }
 
   getAll<
     THandler extends (arg: TArgs extends undefined ? URecord : TArgs) => unknown,
-    TArgs extends URecord | undefined
+    TArgs extends URecord | undefined,
   >(config: {
-    args?: TArgs,
-    handler: THandler
-  }) {
-
+    args?: TArgs;
+    handler: THandler;
+  },
+  ) {
     return this.get({
       path: "/",
       handler: config.handler,
-      args: config.args
-    })
-
+      args: config.args,
+    });
   }
 
   get<
     TPath extends string,
-    THandler extends (arg: (TArgs extends undefined ? URecord : TArgs) & ExtractParams<TPath> & THooks["beforeHandler"]["TGetLastHookReturnType"]) => unknown,
-    TArgs extends URecord | undefined
+    THandler extends (arg: (TArgs extends undefined ? URecord : TArgs) & ExtractParams<TPath> & TDCtx) => unknown,
+    TArgs extends URecord | undefined,
   >(config: {
-    path: TPath,
-    handler: THandler,
-    args: TArgs,
-    cache?: CacheHandlerConfig<Parameters<THandler>[0]>
-  }): Blazy<
-    TRouterTree &
-    PathStringToObject<
+    path: TPath;
+    handler: THandler;
+    args: TArgs;
+  },
+  ): Blazy<
+    TRouterTree
+    & PathStringToObject<
       TPath,
-      NormalRouteHandler<
+      HttpVerbHandler<
         Parameters<THandler>[0],
         ReturnType<THandler>
       >,
-      'GET'
+      "GET"
     >,
     THooks
   > {
-
-    return this.http<TPath, THandler, any, 'GET'>({
+    return this.http<TPath, THandler, any, "GET">({
       path: config.path,
       // handler: v => v.path === "GET" ? config.handler(v) : this.notFound(),
       handler: config.handler,
       args: config.args,
       meta: { verb: "GET", protocol: "GET" as const },
       cache: config.cache,
-    })
-
+    });
   }
 
   html<TPath extends string>(config: {
-    path: TPath,
-    html: string,
-    init?: ResponseInit,
+    path: TPath;
+    html: string;
+    init?: ResponseInit;
   } | {
-    path: TPath,
-    filePath: string,
-    init?: ResponseInit,
+    path: TPath;
+    filePath: string;
+    init?: ResponseInit;
   }) {
     return this.get({
       path: config.path,
@@ -487,7 +487,7 @@ export class Blazy<
         ? HtmlResponse(config.html, config.init)
         : HtmlFileResponse(config.filePath, config.init),
       args: undefined,
-    })
+    });
   }
 
   /**
@@ -501,7 +501,9 @@ export class Blazy<
   fromFunc<
     TName extends string,
     TFunc extends IFunc<TName, any, any>,
-  >(name: TName, func: TFunc): this {
+  >(name: TName,
+    func: TFunc,
+  ): this {
     return this.rpcFromFunction(name, func);
   }
 
@@ -509,7 +511,7 @@ export class Blazy<
    * Adds a route from a normal function.
    * Converts the function to a typed function and adds it as a route.
    * Creats a REST endpoint
-   * Automatically adds the result to the response body 
+   * Automatically adds the result to the response body
    * @param name - The name of the route.
    * @param func - The normal function to add as a route.
    * @template TFunc - The function type.
@@ -519,11 +521,12 @@ export class Blazy<
    */
   fromNormalFunc<
     TFunc extends (arg: { body: URecord }) => unknown,
-    TName extends string
-  >(name: TName, func: TFunc) {
-    return this.fromFunc(name, NormalFunc.fromFunc(func, name))
+    TName extends string,
+  >(name: TName,
+    func: TFunc,
+  ) {
+    return this.fromFunc(name, NormalFunc.fromFunc(func, name));
   }
-
 
   /*
     json rpc version of routify
@@ -540,20 +543,21 @@ export class Blazy<
     THandlerReturn,
     TArgs extends z.ZodObject | undefined,
   >(v: {
-    name: TName,
-    handler: (arg: (TArgs extends undefined ? URecord : z.infer<TArgs>)) => THandlerReturn,
-    args?: TArgs
-  }) {
+    name: TName;
+    handler: (arg: (TArgs extends undefined ? URecord : z.infer<TArgs>)) => THandlerReturn;
+    args?: TArgs;
+  },
+  ) {
     return this.post({
       path: `/rpc/${v.name}`,
       handeler: v.handler,
       args: v.args,
       meta: { protocol: "POST", verb: "POST" },
-    })
+    });
   }
 
   /*
-  exposes a JSON RPC standard abiding the JSON rpc spec input and output, that is different from fromFunction which turns it into REST instead, it uses the custom Function construct from the better standard library which is designed to keep info 
+  exposes a JSON RPC standard abiding the JSON rpc spec input and output, that is different from fromFunction which turns it into REST instead, it uses the custom Function construct from the better standard library which is designed to keep info
   */
   rpcFromFunction<
     TFunc extends IFunc<string, any, any>,
@@ -564,7 +568,9 @@ export class Blazy<
   >(name: TName, func: TFunc): this;
   rpcFromFunction<
     TFunc extends IFunc<string, any, any>,
-  >(nameOrFunc: string | TFunc, maybeFunc?: TFunc) {
+  >(nameOrFunc: string | TFunc,
+    maybeFunc?: TFunc,
+  ) {
     const func = typeof nameOrFunc === "string" ? maybeFunc : nameOrFunc;
     if (!func) {
       throw new Error("rpcFromFunction requires a function definition.");
@@ -581,37 +587,40 @@ export class Blazy<
     }) as this;
   }
 
-
-
   ws<
     TPath extends string,
-    TMessages extends Schema
+    TMessages extends Schema,
   >(v: {
-    path: TPath,
-    messages: TMessages
-  }): Blazy<
-    TRouterTree &
-    PathStringToObject<
+    path: TPath;
+    messages: TMessages;
+  },
+  ): Blazy<
+    TRouterTree
+    & PathStringToObject<
       TPath,
       WebsocketRouteHandler<TMessages>,
       "ws"
     >,
     THooks
   > {
+    const routeMatcher = new DSLRouting(v.path);
+
     return this.addRoute({
-      routeMatcher: new NormalRouting(v.path),
-      handler: new WebsocketRouteHandler(v.messages, { subRoute: v.path }),
-      protocol: 'ws'
+      routeMatcher,
+      handler: new WebsocketRouteHandler(v.messages, {
+        subRoute: routeMatcher.getRouteString(),
+        protocol: "ws",
+      }),
+      protocol: "ws",
     });
   }
 
   wsFromObject() { }
 
-
   brpcRoutify() { }
 
-  createClient(): ClientBuilder<TRouterTree, { beforeSend: HooksDefault, afterReceive: HooksDefault, onErrored: HooksDefault }> {
-    return CleintBuilderConstructors.fromRouteTree(this.routes)
+  createClient(): ClientBuilder<TRouterTree, { beforeSend: HooksDefault; afterReceive: HooksDefault; onErrored: HooksDefault }> {
+    return CleintBuilderConstructors.fromRouteTree(this.routes);
   }
 
   listen(port: number = 3000) {
@@ -633,25 +642,32 @@ export class Blazy<
             }
           }
 
-
           const headers: Record<string, string> = {};
           req.headers.forEach((v, k) => (headers[k] = v));
 
           let body: any = {};
           const contentType = req.headers.get("content-type") || "";
           if (contentType.includes("application/json")) {
-            try { body = await req.json(); } catch { body = {} }
-          } else {
-            try { const text = await req.text(); if (text) body = { text }; } catch { body = {} }
+            try { body = await req.json(); }
+            catch { body = {}; }
+          }
+          else {
+            try {
+              const text = await req.text(); if (text)
+                body = { text };
+            }
+            catch { body = {}; }
           }
 
           const res = await this.route({ reqData: { url: req.url, protocol: req.method, body, verb: req.method, headers } });
 
           // If router returned a native Response, forward it. Otherwise try to coerce.
-          if (res instanceof Response) return res;
+          if (res instanceof Response)
+            return res;
           return JsonResponse(res);
-        } catch (e) {
-          console.log(e)
+        }
+        catch (e) {
+          console.log(e);
           return JsonResponse({ error: String(e) }, { status: 500 });
         }
       },
@@ -690,7 +706,8 @@ export class Blazy<
           const messageHandler = routeHandler.schema.messagesItCanRecieve[parsedMessage.type];
           if (messageHandler) {
             messageHandler.handler({ data: parsedMessage.body, ws });
-          } else {
+          }
+          else {
             console.error("No message handler for type:", parsedMessage.type);
           }
         },
@@ -703,35 +720,32 @@ export class Blazy<
     return server;
   }
 
-  applySubApp<T extends BlazyDefault, TType extends SubAppTypes>(v: T, type : TType) {
-    
+  applySubApp<T extends BlazyDefault, TType extends SubAppTypes>(v: T, type: TType) {
     switch (type) {
-      case "applyToParent": 
+      case "applyToParent":
         break;
-    case "contained":
+      case "contained":
         break;
       case "global":
-        
-        Object.entries(v.services.services).forEach(([name, value]) => 
-          this.services.addService({name, service: value})
-        )
-        
-        Object.entries(v.routerHooks).forEach(([hookBundleName, hooksBundle]) => 
-          hooksBundle.v.forEach(hook => 
-            this.routerHooks[hookBundleName as keyof RouterHooks].add(hook)
-          )
-      )
-        break
+
+        Object.entries(v.services.services).forEach(([name, value]) =>
+          this.services.addService({ name, service: value }),
+        );
+
+        Object.entries(v.routerHooks).forEach(([hookBundleName, hooksBundle]) =>
+          hooksBundle.v.forEach(hook =>
+            this.routerHooks[hookBundleName as keyof RouterHooks].add(hook),
+          ),
+        );
+        break;
     }
   }
 
+  applySubAppInline<Treturn extends Blazy>(func: (subRouter: this) => Treturn): this { } // so that we preserve intellisense
 
-  applySubAppInline<Treturn extends Blazy>(func: (subRouter: this) => Treturn): this { } // so that we preserve intellisense 
-
-  createSubrouter(): this { // so that we preserve intellisnse however note that you can define a subrouter in different file that way because it will create circular dependnecy 
+  createSubrouter(): this { // so that we preserve intellisnse however note that you can define a subrouter in different file that way because it will create circular dependnecy
 
   }
-
 }
 
-export type BlazyDefault = Blazy<RouteTree, RouterHooks>
+export type BlazyDefault = Blazy<RouteTree, RouterHooks>;

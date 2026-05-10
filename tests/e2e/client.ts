@@ -1,3 +1,3 @@
 import { app } from "./server";
 
-export const cleint = app.createClient().createClient()("http://localhost:3000")
+export const cleint = app.createClient().createClient()("http://localhost:3000");

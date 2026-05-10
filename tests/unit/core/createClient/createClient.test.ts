@@ -1,7 +1,8 @@
-import { describe, it, expect, expectTypeOf } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
+
 import { BlazyConstructor } from "src/app/constructors";
-import { ClientBuilder } from "src/client/client-builder/clientBuilder";
 import { Client } from "src/client/Client";
+import { ClientBuilder } from "src/client/client-builder/clientBuilder";
 
 describe("createClient()", () => {
   it("returns a ClientBuilder instance", () => {

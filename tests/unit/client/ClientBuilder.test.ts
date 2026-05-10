@@ -1,8 +1,11 @@
-import { describe, it, expect, expectTypeOf } from "vitest";
-import { ClientBuilder, CleintBuilderConstructors } from "src/client/client-builder/clientBuilder";
-import { Client } from "src/client/Client";
 import type { IRouteHandler, IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server";
 import type { IMapable } from "@blazyts/better-standard-library";
+
+import { describe, expect, expectTypeOf, it } from "vitest";
+
+import type { Client } from "src/client/Client";
+
+import { CleintBuilderConstructors, ClientBuilder } from "src/client/client-builder/clientBuilder";
 
 // ---------------------------------------------------------------------------
 // Shared mock handler helpers (same pattern as Client.test.ts)
@@ -30,8 +33,8 @@ function protocolLeaf<TProtocol extends string, THandler extends IRouteHandler<a
 // ---------------------------------------------------------------------------
 // Runtime tests
 // ---------------------------------------------------------------------------
-describe("ClientBuilder", () => {
-  describe("CleintBuilderConstructors", () => {
+describe("clientBuilder", () => {
+  describe("cleintBuilderConstructors", () => {
     it("empty() returns a ClientBuilder instance", () => {
       const builder = CleintBuilderConstructors.empty();
       expect(builder).toBeInstanceOf(ClientBuilder);
@@ -52,7 +55,6 @@ describe("ClientBuilder", () => {
   });
 
   describe("createClient()", () => {
-    
     it("client built from a route tree exposes the routes", () => {
       const handler = makeMockHandler<{ name: string }, { id: number }>("/users", { id: 1 });
       const tree = { users: protocolLeaf("POST", handler) };
@@ -101,8 +103,8 @@ describe("ClientBuilder", () => {
 // ---------------------------------------------------------------------------
 // Type-level tests
 // ---------------------------------------------------------------------------
-describe("ClientBuilder types", () => {
-;
+describe("clientBuilder types", () => {
+  ;
 
   it("client.routes from builder preserves the route tree type", () => {
     const handler = makeMockHandler<{ name: string }, { id: number }>("/users", { id: 1 });
