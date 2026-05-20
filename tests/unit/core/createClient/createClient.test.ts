@@ -1,8 +1,9 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
+
 import { BlazyConstructor } from "src/app/constructors";
 import { Client } from "src/client/Client";
 import { ClientBuilder } from "src/client/client-builder/clientBuilder";
-import{ NormalRouting } from "src/route/matchers/normal";
+import { NormalRouting } from "src/route/matchers/normal";
 
 describe("createClient()", () => {
   it("returns a ClientBuilder instance", () => {
