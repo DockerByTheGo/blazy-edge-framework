@@ -1,8 +1,8 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-
 import { BlazyConstructor } from "src/app/constructors";
 import { Client } from "src/client/Client";
 import { ClientBuilder } from "src/client/client-builder/clientBuilder";
+import{ NormalRouting } from "src/route/matchers/normal";
 
 describe("createClient()", () => {
   it("returns a ClientBuilder instance", () => {
@@ -35,7 +35,6 @@ describe("createClient()", () => {
     const receivedUrls: string[] = [];
 
     // Use a raw addRoute with a spy handler to capture the serverUrl
-    const { NormalRouting } = require("src/route/matchers/normal");
     const spyHandler = {
       metadata: { subRoute: "/spy" },
       handleRequest: () => ({}),

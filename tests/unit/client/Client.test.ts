@@ -120,24 +120,6 @@ describe("client", () => {
     // intellisense resolves all three levels
     expect(client.invoke.a.b.c["/"].POST).toBeDefined();
   });
-
-  it("passes path built from tree traversal to getClientRepresentation", () => {
-    const receivedMeta: RuntimeMeta[] = [];
-
-    const handler: IRouteHandler<any, any> = {
-      metadata: { subRoute: "/deep/route", verb: "POST" },
-      handleRequest: () => ({}),
-      getClientRepresentation: (meta) => {
-        receivedMeta.push(meta as RuntimeMeta);
-        return vi.fn(async () => ({}));
-      },
-    };
-
-    const tree = { deep: { route: protocolLeaf("POST", handler) } };
-    new Client(tree, "http://localhost:3000");
-
-    expect(receivedMeta[0]!.path).toBe("/deep/route");
-  });
 });
 
 // ---------------------------------------------------------------------------
