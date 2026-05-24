@@ -68,7 +68,8 @@ describe("ws()", () => {
     });
 
     const protocols = treeRouteFinder(app.routes, new Path("/rooms/123"))
-      .expect("Expected dynamic ws route to be found");
+      .expect("Expected dynamic ws route to be found")
+      .valueOf() as any;
 
     expect(protocols.ws).toBeDefined();
     expect(protocols.ws.metadata.subRoute).toBe("/rooms/:roomId");

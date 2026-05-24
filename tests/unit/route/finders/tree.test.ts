@@ -2,7 +2,7 @@ import type { IRouteHandler } from "@blazyts/backend-lib/src/core/server/router/
 import type { RouteTree } from "@blazyts/backend-lib/src/core/server/router/types";
 
 import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import { treeRouteFinder } from "src/route/finders";
 

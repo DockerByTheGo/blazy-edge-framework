@@ -1,5 +1,7 @@
 export const fetch = globalThis.fetch.bind(globalThis);
 
+export const hash = (value: string) => value;
+
 export const password = {
   hash: async (value: string) => value,
   verify: async (_value: string, _hash: string) => true,

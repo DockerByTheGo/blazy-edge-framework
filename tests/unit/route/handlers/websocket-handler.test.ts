@@ -1,5 +1,5 @@
 import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
-import { describe, expect, expectTypeOf, it } from "bun:test";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import z from "zod/v4";
 
 import { BlazyConstructor } from "src/app/constructors";
@@ -7,7 +7,7 @@ import { treeRouteFinder } from "src/route/finders/tree";
 import { WebsocketRouteHandler } from "src/route/handlers/variations/websocket";
 import { Message } from "src/route/handlers/variations/websocket/types";
 
-describe("WebsocketRouteHandler (bun)", () => {
+describe("WebsocketRouteHandler", () => {
   const newMEssageSchema = z.object({ name: z.string(), password: z.string() });
   const joinedSchema = z.object({ name: z.string() });
   const handler = new WebsocketRouteHandler({

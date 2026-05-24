@@ -1,7 +1,7 @@
 import type { RouteTree } from "@blazyts/backend-lib/src/core/server/router/types";
 
 import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 
 import { treeRouteFinder } from "src/route/finders";
 

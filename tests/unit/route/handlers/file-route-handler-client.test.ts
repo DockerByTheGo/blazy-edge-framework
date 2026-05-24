@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
 
 import type { FileClientRepresentation } from "src/route/handlers/variations/file/File";

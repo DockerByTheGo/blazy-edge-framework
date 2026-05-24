@@ -1,12 +1,12 @@
-import { describe, it } from "bun:test";
+import { describe, it } from "vitest";
 import z from "zod/v4";
 
 import { app } from "./server";
 
 describe("e2e simple app", () => {
   it("responds to POST /jiji/koko and WebSocket /rooms", async () => {
-    const port = 3001;
-    const server: any = app.listen(port);
+    const server: any = app.listen(0);
+    const port = server.port;
 
     try {
       const client = app

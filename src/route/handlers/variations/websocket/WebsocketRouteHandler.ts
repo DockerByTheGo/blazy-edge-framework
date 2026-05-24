@@ -74,7 +74,6 @@ export class WebsocketRouteHandler<
       .forEach(
         ([messageName, message], i) => {
           handle[messageName] = (callback: (data) => void) => {
-            const res = message.schema.parse();
             getWebsocketConnection;
           };
         },
