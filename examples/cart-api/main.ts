@@ -1,4 +1,5 @@
 import { BlazyConstructor } from "src/app/constructors";
+import z from "zod/v4";
 
 
 
@@ -11,15 +12,12 @@ const server= BlazyConstructor
     .addService("cartService", cartService)
     .get(
         {
-            path: "/hi",
-            handler: v => "hi",
-            args: {}
+            path: "/:hi",
+            handler: v => ({ji: v.hi}),
         }
     )
 
     server.listen(3005)
-const client =     server.createClient().createClient()("")
+// const client =     server.createClient().createClient()("")
 
 
-
-    client.invoke.hi["/"]

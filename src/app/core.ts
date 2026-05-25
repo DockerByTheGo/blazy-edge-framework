@@ -27,6 +27,7 @@ import type { HandlerProtocol } from "../types";
 
 import { CleintBuilderConstructors } from "../client/client-builder/clientBuilder";
 import { treeRouteFinder } from "../route/finders";
+import type { ZodObject } from "zod/v4";
 
 const FILE_SAVER_SERVICE_NAME = "fileSaver";
 const CACHE_SERVICE_NAME = "cache";
@@ -443,12 +444,18 @@ export class Blazy<
 
   get<
     TPath extends string,
-    THandler extends (arg: (TArgs extends undefined ? URecord : TArgs) & ExtractParams<TPath> & TDCtx) => unknown,
-    TArgs extends URecord | undefined,
+    THandler extends (
+      arg: And<[
+      (TArgs extends undefined ? {} : z.infer<TArgs>),
+       ExtractParams<TPath>,
+      //  TDCtx
+      ]> 
+    ) => unknown,
+    TArgs extends ZodObject | undefined,
   >(config: {
     path: TPath;
     handler: THandler;
-    args: TArgs;
+    args?: TArgs;
   },
   ): Blazy<
     TRouterTree
