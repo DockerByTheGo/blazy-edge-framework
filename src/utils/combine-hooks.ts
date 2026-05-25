@@ -1,6 +1,6 @@
+import  { Hook } from "@blazyts/backend-lib";
 import type { First, Last } from "@blazyts/better-standard-library";
 
-import { Hook } from "@blazyts/backend-lib/src/core/types/Hooks/Hooks";
 
 export function combineHooks<THooks extends Hook<any, any>[]>(...hooks: THooks): Hook<
   string,

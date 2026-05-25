@@ -48,7 +48,6 @@ describe("Tree Route Finder with Protocols", () => {
     const path = new Path("/chat");
     const result = treeRouteFinder(routes, path);
 
-    console.log("kook", result);
     expect(result.isSome()).toBe(true);
     const handlers = result.unpack().valueOf();
     expect(handlers.ws).toBeDefined();

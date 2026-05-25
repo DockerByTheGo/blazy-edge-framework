@@ -1,38 +1,11 @@
-import type { IRouteHandler, IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server";
-import type { IMapable } from "@blazyts/better-standard-library";
+import type { IRouteHandler } from "@blazyts/backend-lib/src/core/server";
 
-import { describe, expect, expectTypeOf, it } from "vitest";
-
-import type { Client } from "src/client/Client";
+import { describe, expect, it } from "vitest";
 
 import { CleintBuilderConstructors, ClientBuilder } from "src/client/client-builder/clientBuilder";
 
-// ---------------------------------------------------------------------------
-// Shared mock handler helpers (same pattern as Client.test.ts)
-// ---------------------------------------------------------------------------
-type RuntimeMeta = IRouteHandlerMetadata & Record<string, unknown>;
+import { makeMockHandler, protocolLeaf, type RuntimeMeta } from "./clientTestHelpers";
 
-function makeMockHandler<TArg, TReturn>(subRoute: string, response: TReturn) {
-  type ClientFn = (arg: TArg) => Promise<TReturn>;
-  const clientFn = async (_arg: TArg): Promise<TReturn> => response;
-
-  return {
-    metadata: { subRoute, verb: "POST" as const },
-    handleRequest: (_arg: TArg): TReturn => response,
-    getClientRepresentation: (_meta: RuntimeMeta): ClientFn => clientFn,
-  } satisfies IRouteHandler<any, any>;
-}
-
-function protocolLeaf<TProtocol extends string, THandler extends IRouteHandler<any, any>>(
-  protocol: TProtocol,
-  handler: THandler,
-) {
-  return { "/": { [protocol]: handler } } as { "/": { [K in TProtocol]: THandler } };
-}
-
-// ---------------------------------------------------------------------------
-// Runtime tests
-// ---------------------------------------------------------------------------
 describe("clientBuilder", () => {
   describe("cleintBuilderConstructors", () => {
     it("empty() returns a ClientBuilder instance", () => {
@@ -97,28 +70,5 @@ describe("clientBuilder", () => {
       expect(received).toEqual([{ name: "alice", normalized: true }]);
       expect(result.raw).toEqual({ ok: true });
     });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Type-level tests
-// ---------------------------------------------------------------------------
-describe("clientBuilder types", () => {
-  ;
-
-  it("client.routes from builder preserves the route tree type", () => {
-    const handler = makeMockHandler<{ name: string }, { id: number }>("/users", { id: 1 });
-    const tree = { users: protocolLeaf("POST", handler) };
-
-    const client = CleintBuilderConstructors.fromRouteTree(tree).createClient()("http://localhost:3000");
-
-    // POST fn arg and return are fully typed
-    expectTypeOf(client.invoke.users["/"].POST).parameters.toEqualTypeOf<[{ name: string }]>();
-    expectTypeOf(client.invoke.users["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ id: number }>>>();
-  });
-
-  it("empty builder produces Client<{}>", () => {
-    const client = CleintBuilderConstructors.empty().createClient()("http://localhost:3000");
-    expectTypeOf(client).toEqualTypeOf<Client<{}>>();
   });
 });

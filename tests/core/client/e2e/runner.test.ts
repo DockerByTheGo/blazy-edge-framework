@@ -1,7 +1,7 @@
+import { app } from "@test/mocks/App/SimpleApp.mock";
 import { describe, it } from "vitest";
 import z from "zod/v4";
 
-import { app } from "./server";
 
 describe("e2e simple app", () => {
   it("responds to POST /jiji/koko and WebSocket /rooms", async () => {

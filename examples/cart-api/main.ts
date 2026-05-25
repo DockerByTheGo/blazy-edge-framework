@@ -6,8 +6,7 @@ const cartService = {
     config: {},
     getAll: () => ["cart 1", "cart 2", "cart 3"]
 };
-
-const client = BlazyConstructor
+const server= BlazyConstructor
     .createProd()
     .addService("cartService", cartService)
     .get(
@@ -17,7 +16,9 @@ const client = BlazyConstructor
             args: {}
         }
     )
-    .createClient().createClient()("")
+
+    server.listen(3005)
+const client =     server.createClient().createClient()("")
 
 
 
