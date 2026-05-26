@@ -596,7 +596,7 @@ export class Blazy<
 
   ws<
     TPath extends string,
-    TMessages extends Schema,
+    TMessages extends Schema<{params: ExtractParams<TPath>}>,
   >(v: {
     path: TPath;
     messages: TMessages;

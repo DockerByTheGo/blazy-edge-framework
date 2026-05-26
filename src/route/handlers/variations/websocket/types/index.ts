@@ -1,5 +1,4 @@
 import type { KeyOfOnlyStringKeys, URecord } from "@blazyts/better-standard-library";
-import type { ZodObject } from "zod/v4";
 import type z from "zod/v4";
 
 export type WebSocketMessage = {
@@ -28,16 +27,16 @@ export type WebSocketContext = {
   sendTo: (connectionId: string, message: WebSocketResponse) => void;
 };
 
-export class Message<TSchema extends z.ZodObject> {
+export class Message<TParams extends URecord, TSchema extends z.ZodObject> {
   constructor(
     public readonly schema: TSchema,
-    public readonly handler: (ctx: { data: z.infer<TSchema>; ws: WebSocket }) => void,
+    public readonly handler: (ctx: { data: z.infer<TSchema>; ws: WebSocket; params: TParams }) => void,
   ) { }
 }
 
-export type Schema<Ctx extends ZodObject = z.ZodObject> = {
-  messagesItCanSend: Record<string, Message<z.ZodObject>>;
-  messagesItCanRecieve: Record<string, Message<Ctx>>;
+export type Schema<TCtx extends { params: URecord} = { params: URecord }> = {
+  messagesItCanSend: Record<string, Message<TCtx["params"], z.ZodObject>>;
+  messagesItCanRecieve: Record<string, Message<TCtx["params"], z.ZodObject>>;
 };
 
 export type WeboscketRouteCleintRepresentation<TServerMessagesSchema extends Schema> = {

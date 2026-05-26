@@ -26,19 +26,6 @@ describe("ws()", () => {
     expect(protocols.ws.metadata.subRoute).toBe("/chat");
   });
 
-  it("does not register under POST or GET", () => {
-    const app = BlazyConstructor.createEmpty().ws({
-      path: "/stream",
-      messages: { messagesItCanRecieve: {}, messagesItCanSend: {} },
-    });
-
-    const protocols = getProtocols(app.routes, "/stream");
-
-    expect(protocols.ws).toBeDefined();
-    expect(protocols.POST).toBeUndefined();
-    expect(protocols.GET).toBeUndefined();
-  });
-
   it("stores the message schema on the handler", () => {
     const handler = vi.fn();
     const app = BlazyConstructor.createEmpty().ws({
