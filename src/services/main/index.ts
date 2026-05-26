@@ -1,2 +1,2 @@
-export * from "./Service"
-export * from "./manager"
+export * from "./manager";
+export * from "./Service";

@@ -1,5 +1,3 @@
-
-
 type Subscribeable<T extends Record<string, (value: unknown) => any>> = {
   [K in keyof T]: {
     invoke: (v: Parameters<T[K]>) => ReturnType<T[K]>;

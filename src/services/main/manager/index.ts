@@ -1,1 +1,1 @@
-export * from "./ServicesManager"
+export * from "./ServicesManager";

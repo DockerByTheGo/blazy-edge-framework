@@ -3,6 +3,13 @@
   "type": "module",
   "private": true,
   "module": "index.ts",
+  "scripts": {
+    "lint": "bun --bun eslint src tests",
+    "build": "bunx tsc -p tsconfig.json --noEmit",
+    "test": "bun --bun x vitest run --config vitest.config.ts",
+    "coverage": "bun test --coverage", 
+    "bun:test": "bun test"
+  },
   "peerDependencies": {
     "typescript": "^5"
   },
