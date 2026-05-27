@@ -8,7 +8,7 @@ describe("post()", () => {
   it("registers the route directly in the router tree under POST", () => {
     const app = BlazyConstructor.createEmpty().post({
       path: "/users",
-      handeler: () => ({ body: { ok: true } }),
+      handler: () => ({ body: { ok: true } }),
     });
 
     const protocols = getProtocols(app.routes, "/users");
@@ -26,7 +26,7 @@ describe("post()", () => {
   it("registers nested paths as nested router nodes", () => {
     const app = BlazyConstructor.createEmpty().post({
       path: "/api/users",
-      handeler: () => ({ body: { ok: true } }),
+      handler: () => ({ body: { ok: true } }),
     });
 
     const protocols = getProtocols(app.routes, "/api/users");
@@ -39,7 +39,7 @@ describe("post()", () => {
   it("registers dynamic path segments in the router tree", () => {
     const app = BlazyConstructor.createEmpty().post({
       path: "/users/:userId/posts",
-      handeler: () => ({ body: { ok: true } }),
+      handler: () => ({ body: { ok: true } }),
     });
 
     const protocols = getProtocols(app.routes, "/users/:userId/posts");
@@ -52,7 +52,7 @@ describe("post()", () => {
   it("does not register under GET", () => {
     const app = BlazyConstructor.createEmpty().post({
       path: "/only-post",
-      handeler: () => ({ body: {} }),
+      handler: () => ({ body: {} }),
     });
 
     const protocols = getProtocols(app.routes, "/only-post");
@@ -63,8 +63,8 @@ describe("post()", () => {
 
   it("multiple post routes coexist as separate router branches", () => {
     const app = BlazyConstructor.createEmpty()
-      .post({ path: "/a", handeler: () => ({ body: { from: "a" } }) })
-      .post({ path: "/b", handeler: () => ({ body: { from: "b" } }) });
+      .post({ path: "/a", handler: () => ({ body: { from: "a" } }) })
+      .post({ path: "/b", handler: () => ({ body: { from: "b" } }) });
 
     const aProtocols = getProtocols(app.routes, "/a");
     const bProtocols = getProtocols(app.routes, "/b");

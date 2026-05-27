@@ -275,7 +275,7 @@ const app = BlazyConstructor
       sku: z.string(),
       quantity: z.number().int().positive(),
     }),
-    handeler: (ctx: RequestContext & {
+    handler: (ctx: RequestContext & {
       storeId: string;
       cartId: string;
       sku: string;
@@ -298,7 +298,7 @@ const app = BlazyConstructor
   })
   .post({
     path: "/stores/:storeId/carts/:cartId/checkout",
-    handeler: (ctx: RequestContext & {
+    handler: (ctx: RequestContext & {
       storeId: string;
       cartId: string;
       body: { items: CartItem[] };

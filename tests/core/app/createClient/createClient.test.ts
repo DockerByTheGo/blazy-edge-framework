@@ -23,7 +23,7 @@ describe("createClient()", () => {
   it("routes registered on the app are accessible on the client", () => {
     const app = BlazyConstructor.createEmpty().post({
       path: "/api/items",
-      handeler: () => ({ body: { ok: true } }),
+      handler: () => ({ body: { ok: true } }),
     });
 
     const client = app.createClient().createClient()("http://localhost:3000");
