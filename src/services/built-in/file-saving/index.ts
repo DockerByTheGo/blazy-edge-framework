@@ -1,2 +1,2 @@
 
-// For backwards compatibility, export LocalFileSaver as default FileSaver
+export * from "./IFileSaver"
