@@ -1,5 +1,21 @@
 type ResponseBody = BodyInit | null;
 
+type ValidationIssue = {
+  path: (string | number)[];
+  field: string;
+  message: string;
+  code: string;
+};
+
+export type FailedValidationBody = {
+  type: "validation_failed";
+  body: {
+    message: string;
+    issues: ValidationIssue[];
+    fieldErrors: Record<string, string[]>;
+  };
+};
+
 function withDefaultHeader(init: ResponseInit | undefined, name: string, value: string): ResponseInit {
   const headers = new Headers(init?.headers);
 
@@ -49,6 +65,37 @@ export function JsonResponse(data: unknown, init?: ResponseInit): Response {
     JSON.stringify(data) ?? "null",
     withDefaultHeader(init, "content-type", "application/json; charset=utf-8"),
   );
+}
+
+export function formatFailedValidation(error: { issues: Array<{ path: (string | number)[]; message: string; code: string }> }): FailedValidationBody {
+  const issues = error.issues.map(issue => ({
+    path: issue.path,
+    field: issue.path.length > 0 ? issue.path.join(".") : "body",
+    message: issue.message,
+    code: issue.code,
+  }));
+
+  return {
+    type: "validation_failed",
+    body: {
+      message: "Request validation failed",
+      issues,
+      fieldErrors: issues.reduce<Record<string, string[]>>((acc, issue) => {
+        acc[issue.field] = [...(acc[issue.field] ?? []), issue.message];
+        return acc;
+      }, {}),
+    },
+  };
+}
+
+export function FailedValidationResponse(
+  error: Parameters<typeof formatFailedValidation>[0],
+  init?: ResponseInit,
+): Response {
+  return JsonResponse(formatFailedValidation(error), {
+    status: 400,
+    ...init,
+  });
 }
 
 export function TextResponse(text: string, init?: ResponseInit): Response {

@@ -9,11 +9,12 @@ import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Pat
 import { entries } from "@blazyts/better-standard-library";
 
 import type { HttpVerbHandlerCtx } from "src/route/handlers";
-import type { Schema } from "src/route/handlers/variations/websocket/types";
+import type { Schema, WebSocketMessage } from "src/route/handlers/variations/websocket/types";
 import type { ExtractParams } from "src/route/matchers/dsl/types/extractParams";
 
-import { HtmlFileResponse, HtmlResponse, JsonResponse } from "src/response";
+import { FailedValidationResponse, HtmlFileResponse, HtmlResponse, JsonResponse } from "src/response";
 import { HttpVerbHandler } from "src/route/handlers";
+import { createHttpVerbHandlerCtx, getHttpValidationTarget } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
 import { FileRouteHandler } from "src/route/handlers/variations/file/File";
 import { normalizeFileRoute } from "src/route/handlers/variations/file/utils";
 import { WebsocketRouteHandler } from "src/route/handlers/variations/websocket";
@@ -32,9 +33,67 @@ import type { ZodObject } from "zod/v4";
 const FILE_SAVER_SERVICE_NAME = "fileSaver";
 const CACHE_SERVICE_NAME = "cache";
 
+type Handler<TArg> = (arg: TArg) => unknown;
 type EmptyHooks = ReturnType<typeof Hooks.empty>;
 const subAppTypes = ["contained", "applyToParent", "global"] as const;
 type SubAppTypes = (typeof subAppTypes)[number];
+type BlazyRequestData = {
+  url: string;
+  protocol?: string;
+  verb?: string;
+  headers: Record<string, string>;
+  body: unknown;
+};
+
+type NotFoundReason = "route" | "method";
+type NotFoundContext = {
+  request: {
+    url: string;
+    path: string;
+    method: string;
+    verb: string;
+    headers: Record<string, string>;
+    body: unknown;
+  };
+  reason: NotFoundReason;
+  availableProtocols: string[];
+};
+type NotFoundHandler = (ctx: NotFoundContext) => unknown;
+
+function defaultNotFoundHandler(ctx: NotFoundContext): Response {
+  const routeMessage = ctx.reason === "route"
+    ? `No route found for ${ctx.request.method} ${ctx.request.path}`
+    : `No ${ctx.request.method} handler found for ${ctx.request.path}`;
+
+  return JsonResponse({
+    type: "not_found",
+    body: {
+      message: routeMessage,
+      reason: ctx.reason,
+      method: ctx.request.method,
+      path: ctx.request.path,
+      availableProtocols: ctx.availableProtocols,
+    },
+  }, { status: 404 });
+}
+
+function createNotFoundContext(requestData: BlazyRequestData, reason: NotFoundReason, availableProtocols: string[] = []): NotFoundContext {
+  const method = String(requestData.verb ?? requestData.protocol ?? "GET");
+  const url = new URL(requestData.url || "/", "http://blazy.local");
+
+  return {
+    request: {
+      url: requestData.url,
+      path: url.pathname,
+      method,
+      verb: method,
+      headers: requestData.headers ?? {},
+      body: requestData.body ?? {},
+    },
+    reason,
+    availableProtocols,
+  };
+}
 
 export class Blazy<
   TRouterTree extends RouteTree,
@@ -55,6 +114,7 @@ export class Blazy<
     routerHooks: THooks,
     routes: TRouterTree,
     routeFinder: RouteFinder<any>,
+    private routeNotFoundHandler: NotFoundHandler = defaultNotFoundHandler,
   ) {
     super(
       routerHooks,
@@ -127,7 +187,7 @@ export class Blazy<
     const protocol = v.protocol || "http";
     current["/"][protocol] = modifiedHandler;
 
-    return new Blazy(this.routerHooks, newRoutes, this.routeFinder) as unknown as Blazy<
+    return new Blazy(this.routerHooks, newRoutes, this.routeFinder, this.routeNotFoundHandler) as unknown as Blazy<
       TRouterTree
       & PathStringToObject<
         TPath,
@@ -136,6 +196,46 @@ export class Blazy<
       >,
       THooks
     >;
+  }
+
+  onNotFound(handler: NotFoundHandler): this {
+    this.routeNotFoundHandler = handler;
+    return this;
+  }
+
+  override async route(request: { reqData: BlazyRequestData }) {
+    if (!request.reqData.protocol) {
+      request.reqData.protocol = "GET";
+    }
+    if (!request.reqData.verb) {
+      request.reqData.verb = request.reqData.protocol;
+    }
+
+    try {
+      const req = this.routerHooks.beforeHandler.execute(request) as { reqData: BlazyRequestData };
+      const routeOptional = this.routeFinder(this.routes, new Path(req.reqData.url));
+
+      if (routeOptional.isNone()) {
+        return this.routeNotFoundHandler(createNotFoundContext(req.reqData, "route"));
+      }
+
+      const routeHandlers = routeOptional.unpack();
+      const handlers = routeHandlers.valueOf();
+      const protocol = req.reqData.protocol ?? "GET";
+      const handler = handlers[protocol];
+
+      if (!handler) {
+        return this.routeNotFoundHandler(
+          createNotFoundContext(req.reqData, "method", Object.keys(handlers)),
+        );
+      }
+
+      const response = handler.handleRequest(req);
+      return this.routerHooks.afterHandler.execute(response);
+    }
+    catch (e) {
+      return this.routerHooks.onError.execute(e);
+    }
   }
 
   /**
@@ -289,6 +389,7 @@ export class Blazy<
     handler: Thandler;
     args?: Args;
     meta?: URecord & { protocol?: TProtocol };
+    cache?: any;
   },
   ): Blazy<
     TRouterTree
@@ -338,14 +439,21 @@ export class Blazy<
     };
 
     const handlerFn = (arg: Parameters<Thandler>[0]) => {
+      const ctx = createHttpVerbHandlerCtx(arg);
       if (v.args) {
-        const res = v.args.safeParse(arg);
+        const res = v.args.safeParse(getHttpValidationTarget(arg));
         if (!res.success) {
-          return res.error;
+          return FailedValidationResponse(res.error);
         }
-        return executeHandler(res.data as HandlerArg) as ReturnType<Thandler>;
+        return executeHandler({
+          ...ctx,
+          request: {
+            ...ctx.request,
+            body: res.data,
+          },
+        } as HandlerArg) as ReturnType<Thandler>;
       }
-      return executeHandler(arg as HandlerArg) as ReturnType<Thandler>;
+      return executeHandler(ctx as HandlerArg) as ReturnType<Thandler>;
     };
 
     const finalHandler = new HttpVerbHandler(handlerFn, metadata);
@@ -362,14 +470,26 @@ export class Blazy<
 
   // note if you try to introduce optional param it will lead to weird behaviour where it  creates two paths for one added handler one which is [''] and the other is the desried
   post<
-    // THandler extends (arg: (TArgs extends undefined ? URecord : z.infer<TArgs>) & ExtractParams<TPath>) => unknown,
-    THandler extends HttpVerbHandler<HttpVerbHandlerCtx<TDCtx>>,
-    TArgs extends z.ZodObject | undefined,
     TPath extends string,
+    TArgs extends z.ZodObject | undefined = undefined,
+    THandler extends Handler<
+      HttpVerbHandlerCtx<
+        TDCtx,
+        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+        ExtractParams<TPath>
+      >
+    > = Handler<
+      HttpVerbHandlerCtx<
+        TDCtx,
+        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+        ExtractParams<TPath>
+      >
+    >,
   >(config: {
     path: TPath;
     handler: THandler;
     args?: TArgs;
+    cache?: any;
   },
   ): Blazy<
     TRouterTree
@@ -387,40 +507,59 @@ export class Blazy<
     return this.http<TPath, THandler, any, "POST">({
       path: config.path,
       handler: v => config.handler(v),
+      args: config.args,
       meta: { verb: "POST", protocol: "POST" as const },
       cache: config.cache,
     });
   }
 
   getAll<
-    THandler extends (arg: TArgs extends undefined ? URecord : TArgs) => unknown,
-    TArgs extends URecord | undefined,
+    TArgs extends z.ZodObject | undefined = undefined,
+    THandler extends Handler<
+      HttpVerbHandlerCtx<
+        TDCtx,
+        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+        {}
+      >
+    > = Handler<
+      HttpVerbHandlerCtx<
+        TDCtx,
+        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+        {}
+      >
+    >,
   >(config: {
-    args?: TArgs;
     handler: THandler;
+    args?: TArgs;
   },
   ) {
     return this.get({
       path: "/",
       handler: config.handler,
-      args: config.args,
     });
   }
 
   get<
     TPath extends string,
-    THandler extends (
-      arg: And<[
-        (TArgs extends undefined ? {} : z.infer<TArgs>),
-        ExtractParams<TPath>,
-        //  TDCtx
-      ]>
-    ) => unknown,
-    TArgs extends ZodObject | undefined,
+    TArgs extends z.ZodObject | undefined = undefined,
+    THandler extends Handler<
+      HttpVerbHandlerCtx<
+        TDCtx,
+        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+        ExtractParams<TPath>
+      >
+    > = Handler<
+      HttpVerbHandlerCtx<
+        TDCtx,
+        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+        ExtractParams<TPath>
+      >
+    >,
   >(config: {
     path: TPath;
     handler: THandler;
     args?: TArgs;
+    cache?: any;
   },
   ): Blazy<
     TRouterTree
@@ -468,7 +607,10 @@ export class Blazy<
     TArgs extends z.ZodObject | undefined,
   >(v: {
     name: TName;
-    handler: (arg: (TArgs extends undefined ? URecord : z.infer<TArgs>)) => THandlerReturn;
+    handler: (
+      arg: HttpVerbHandlerCtx<{}, TArgs extends undefined ? {} : z.infer<TArgs>, {}, {}>
+    )
+      => THandlerReturn;
     args?: TArgs;
   },
   ) {
@@ -566,7 +708,7 @@ export class Blazy<
       },
 
       websocket: {
-        data: {} as WsMessage & { connectionId?: string },
+        data: {} as WebSocketMessage & { connectionId?: string; pathname?: string },
         open: (ws) => {
           // Generate a unique connection ID
           const connectionId = crypto.randomUUID();
@@ -574,7 +716,7 @@ export class Blazy<
           console.log("WebSocket connected:", connectionId, "pathname:", ws.data.pathname);
         },
         message: (ws, message) => {
-          const parsedMessage = JSON.parse(message.toString()) as WsMessage;
+          const parsedMessage = JSON.parse(message.toString()) as WebSocketMessage;
 
           // Find the handler for this route
           const handlerOptional = treeRouteFinder(this.routes, new Path(ws.data.pathname));
@@ -595,14 +737,11 @@ export class Blazy<
             return;
           }
 
-          // Call the message handler directly from the schema
-          const messageHandler = routeHandler.schema.messagesItCanRecieve[parsedMessage.type];
-          if (messageHandler) {
-            messageHandler.handler({ data: parsedMessage.body, ws });
-          }
-          else {
-            console.error("No message handler for type:", parsedMessage.type);
-          }
+          routeHandler.handleRequest({
+            ...parsedMessage,
+            path: parsedMessage.path ?? ws.data.pathname,
+            ws,
+          });
         },
         close: (ws) => {
           console.log("WebSocket closed:", ws.data.connectionId);

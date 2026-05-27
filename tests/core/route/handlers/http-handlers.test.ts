@@ -25,7 +25,13 @@ describe("hTTP handlers", () => {
   it("registers and resolves a GET handler on a dynamic path", () => {
     const app = BlazyConstructor.createEmpty().get({
       path: "/users/:id",
-      handler: ({ id, params }) => ({ body: { id, paramsId: params.id, type: "dynamic-get" } }),
+      handler: ctx => ({
+        body: {
+          id: ctx.request.params.id,
+          requestParamId: ctx.request.params.id,
+          type: "dynamic-get",
+        },
+      }),
       args: undefined,
     });
 
@@ -33,15 +39,15 @@ describe("hTTP handlers", () => {
 
     expect(protocols.GET).toBeDefined();
     expect(protocols.GET.handleRequest({})).toEqual({
-      body: { id: "42", paramsId: "42", type: "dynamic-get" },
+      body: { id: "42", requestParamId: "42", type: "dynamic-get" },
     });
   });
 
   it("registers and resolves a POST handler on a hardcoded path", () => {
     const app = BlazyConstructor.createEmpty().post({
       path: "/posts/create",
-      handler: ({ title }: { title: string }) => ({
-        body: { created: true, title, type: "hardcoded-post" },
+      handler: ctx => ({
+        body: { created: true, title: ctx.request.body.title, type: "hardcoded-post" },
       }),
     });
 
@@ -57,13 +63,11 @@ describe("hTTP handlers", () => {
   it("registers and resolves a POST handler on a dynamic path", () => {
     const app = BlazyConstructor.createEmpty().post({
       path: "/users/:userId/posts/:postId",
-      handler: ({ userId, postId, params, body }: { userId: string; postId: string; params: { userId: string; postId: string }; body: { content: string } }) => ({
+      handler: ctx => ({
         body: {
-          userId,
-          postId,
-          paramsUserId: params.userId,
-          paramsPostId: params.postId,
-          content: body.content,
+          userId: ctx.request.params.userId,
+          postId: ctx.request.params.postId,
+          content: ctx.request.body.content,
           type: "dynamic-post",
         },
       }),
@@ -78,8 +82,6 @@ describe("hTTP handlers", () => {
       body: {
         userId: "7",
         postId: "11",
-        paramsUserId: "7",
-        paramsPostId: "11",
         content: "hello world",
         type: "dynamic-post",
       },
@@ -118,6 +120,87 @@ describe("hTTP handlers", () => {
     expect(await apiResponse.json()).toEqual({ ok: true });
     expect(plainResponse.headers.get("content-type")).toBe("text/plain; charset=utf-8");
     expect(await plainResponse.text()).toBe("hello");
+  });
+
+  it("provides an organized REST ctx with WHATWG Response helpers", async () => {
+    const app = BlazyConstructor.createEmpty().post({
+      path: "/ctx",
+      handler: ctx => ctx.response.standard({
+        body: ctx.request.body,
+        method: ctx.request.method,
+        params: ctx.request.params,
+        path: ctx.request.path,
+        query: ctx.request.query,
+        whatwgMethod: ctx.request.whatwg().method,
+        whatwgUrl: ctx.request.whatwg().url,
+        hasInput: "input" in ctx,
+        hasLegacyReqData: "reqData" in ctx,
+        hasTopLevelParams: "params" in ctx,
+      }),
+    });
+
+    const protocols = treeRouteFinder(app.routes, new Path("/ctx")).unpack().raw as any;
+    const response = protocols.POST.handleRequest({
+      reqData: {
+        url: "/ctx?debug=true&tag=a&tag=b",
+        protocol: "POST",
+        verb: "POST",
+        body: { ok: true },
+        headers: {},
+      },
+    });
+
+    expect(response).toBeInstanceOf(Response);
+    await expect(response.json()).resolves.toEqual({
+      body: { ok: true },
+      method: "POST",
+      params: {},
+      path: "/ctx",
+      query: {
+        debug: "true",
+        tag: ["a", "b"],
+      },
+      whatwgMethod: "POST",
+      whatwgUrl: "http://blazy.local/ctx?debug=true&tag=a&tag=b",
+      hasInput: false,
+      hasLegacyReqData: false,
+      hasTopLevelParams: false,
+    });
+  });
+
+  it("creates a WHATWG Request from ctx.request", async () => {
+    const app = BlazyConstructor.createEmpty().post({
+      path: "/whatwg",
+      handler: async (ctx) => {
+        const request = ctx.request.whatwg();
+
+        return {
+          body: {
+            method: request.method,
+            contentType: request.headers.get("content-type"),
+            body: await request.json(),
+          },
+        };
+      },
+    });
+
+    const protocols = treeRouteFinder(app.routes, new Path("/whatwg")).unpack().raw as any;
+
+    await expect(protocols.POST.handleRequest({
+      reqData: {
+        url: "http://localhost:3005/whatwg",
+        protocol: "POST",
+        verb: "POST",
+        body: { ok: true },
+        headers: { "content-type": "application/json" },
+      },
+    })).resolves.toEqual({
+      body: {
+        method: "POST",
+        contentType: "application/json",
+        body: { ok: true },
+      },
+    });
   });
 
   it("registers html GET routes from a string or file path", async () => {

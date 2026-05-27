@@ -1,21 +1,19 @@
-import type { IOptionable, IResultable, URecord } from "@blazyts/better-standard-library";
-import type z from "zod/v4";
-import type { ServiceDefault } from "../../main/Service";
+export type CacheEntry<TValue> = {
+  key: string;
+  value: TValue;
+  createdAt: number;
+  expiresAt?: number;
+};
 
-type CacheEntry<T> = {
-    key: string,
-    value: T,
-    timestamp: number
-}
+export type MaybePromise<T> = T | Promise<T>;
 
-export interface Cache<TEntries extends {
-    [module: string]: z.ZodObject
-} extends ServiceDefault> {
-    entries : {[key in keyof TEntries]: {
-        flush: ()   => void,
-        getAll: () => z.infer<(CacheEntry<TEntries[key]>)[]>,
-        getEntry(key: string): z.infer<IOptionable<CacheEntry<TEntries[key]>>>
-        saveEntry(key: string, value: z.infer<TEntries[key]>): void
-        invalidate(key: string): Promise<IResultable<{}, ["not-found"]>>
-    }}
-}
+export type ICacheService<TValue = unknown> = {
+  config: Record<string, unknown>;
+  flush: () => MaybePromise<void>;
+  getAll: () => MaybePromise<CacheEntry<TValue>[]>;
+  getEntry: (key: string) => MaybePromise<TValue | undefined>;
+  hasEntry: (key: string) => MaybePromise<boolean>;
+  invalidate: (key: string) => MaybePromise<boolean>;
+  saveEntry: (key: string, value: TValue, ttl?: number) => MaybePromise<void>;
+  setEntry: (key: string, value: TValue, ttl?: number) => MaybePromise<void>;
+};

@@ -27,7 +27,7 @@ export class RequestResponseWebsocket<TSchema extends {
 
   constructor(
     public readonly schema: TSchema,
-    handler: (ctx: { data: z.infer<TSchema["ReQuestSchema"]>; ws: WebSocket }) => z.infer<TSchema["ResponseSchema"]>,
+    handler: (ctx: { message: { body: z.infer<TSchema["ReQuestSchema"]>; params: URecord }; ws: WebSocket }) => z.infer<TSchema["ResponseSchema"]>,
     metadata,
   ) {
     this.websocketRouteHandler = new WebsocketRouteHandler(
@@ -38,7 +38,7 @@ export class RequestResponseWebsocket<TSchema extends {
             handler: ctx => ctx.ws.send(JSON.stringify({
               body: handler(ctx),
               type: "response",
-              requestId: ctx.data.requestId,
+              requestId: ctx.message.body.requestId,
             })),
           },
         },

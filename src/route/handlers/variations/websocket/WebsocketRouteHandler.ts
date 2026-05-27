@@ -3,6 +3,8 @@ import type { IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server
 
 import type { Schema, WeboscketRouteCleintRepresentation, WebSocketMessage, WebSocketResponse } from "./types";
 
+import { formatFailedValidation } from "src/response";
+
 import { getWebsocketConnection } from "./WebsocketConnectionSingleton";
 
 type WebsocketRouteMetadata = Partial<IRouteHandlerMetadata> & {
@@ -22,11 +24,23 @@ export class WebsocketRouteHandler<
   handleRequest(message: WebSocketMessage): WebSocketResponse {
     const messageHandler = this.schema.messagesItCanRecieve[message.type];
     if (messageHandler) {
-      try {
-        const parsed = messageHandler.schema.parse(message.body);
-        messageHandler.handler({ data: parsed, ws: undefined as any });
+      const parsed = messageHandler.schema.safeParse(message.body);
+      if (parsed.success) {
+        messageHandler.handler({
+          message: {
+            body: parsed.data,
+            params: (message.params ?? {}) as any,
+          },
+          ws: message.ws as WebSocket,
+        });
       }
-      catch (error) {
+      else {
+        const response = formatFailedValidation(parsed.error);
+        message.ws?.send(JSON.stringify(response));
+        return {
+          type: response.type,
+          data: response.body,
+        };
       }
     }
 

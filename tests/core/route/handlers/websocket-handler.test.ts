@@ -1,5 +1,5 @@
 import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import z from "zod/v4";
 
 import { BlazyConstructor } from "src/app/constructors";
@@ -20,7 +20,7 @@ describe("WebsocketRouteHandler", () => {
     messagesItCanSend: {
       joined: new Message(
         joinedSchema,
-        v => v.data,
+        v => v.message.body,
       ),
     },
   }, {});
@@ -62,7 +62,7 @@ describe("WebsocketRouteHandler", () => {
             ping: new Message(pingSchema, () => ({ pinged: true })),
           },
           messagesItCanSend: {
-            pong: new Message(pingSchema, ({ data }) => data),
+            pong: new Message(pingSchema, ({ message }) => message.body),
           },
         },
       });
@@ -74,5 +74,33 @@ describe("WebsocketRouteHandler", () => {
     expect(handler.ws).toBeDefined();
     expect(handler.ws.handleRequest).toBeFunction();
     expect(handler.ws.getClientRepresentation).toBeFunction();
+  });
+
+  it("sends a failed validation message back to the websocket host", () => {
+    const send = vi.fn();
+    const handler = new WebsocketRouteHandler({
+      messagesItCanRecieve: {
+        ping: new Message(z.object({ id: z.string() }), () => {}),
+      },
+      messagesItCanSend: {},
+    }, {});
+
+    const response = handler.handleRequest({
+      type: "ping",
+      path: "/chat",
+      body: { id: 123 },
+      ws: { send } as any,
+    });
+
+    expect(response.type).toBe("validation_failed");
+    expect(send).toHaveBeenCalledOnce();
+    expect(JSON.parse(send.mock.calls[0][0])).toMatchObject({
+      type: "validation_failed",
+      body: {
+        fieldErrors: {
+          id: expect.any(Array),
+        },
+      },
+    });
   });
 });

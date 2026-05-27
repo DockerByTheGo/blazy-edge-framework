@@ -41,8 +41,8 @@ describe("rPC routes", () => {
     const app = BlazyConstructor.createEmpty().rpc({
       name: "echo",
       handler: (ctx: any) => {
-        received.push(ctx.reqData.body);
-        return { body: ctx.reqData.body };
+        received.push(ctx.request.body);
+        return { body: ctx.request.body };
       },
     });
 

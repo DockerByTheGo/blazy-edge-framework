@@ -4,6 +4,7 @@ import { Client } from "src/client/Client";
 
 import { makeMockHandler, protocolLeaf } from "./clientTestHelpers";
 import { BlazyConstructor } from "src";
+import { listenWithPortFallback } from "../../helpers/ports";
 import z from "zod/v4";
 
 describe("client", () => {
@@ -62,26 +63,22 @@ describe("client", () => {
 
   it("correctly sends a request", async () => {
     const app = BlazyConstructor
-    .createProd()
-    .get({
-      path: "/test",
-      handler: () => ({ success: true }),
-      args: z.object({})
-    })
+      .createProd()
+      .get({
+        path: "/test",
+        handler: () => ({ success: true }),
+        args: z.object({}),
+      });
 
-    const port = 3005
+    const server = listenWithPortFallback(port => app.listen(port));
+    const client = app.createClient().createClient()(`http://localhost:${server.port}`);
 
-    const client = app.createClient().createClient()("http://localhost:"+ port);
-
-    app.listen(3005)
-    console.log("frfr")
-   await new Promise(resolve => setTimeout(resolve, 3000)); 
-   
-    console.log("frfr")
-   
-
-    const g = await client.invoke.test["/"].GET()
-    console.log("gg", g);
-    expect(g.raw).toEqual({ success: true });
+    try {
+      const g = await client.invoke.test["/"].GET();
+      expect(g.raw).toEqual({ success: true });
+    }
+    finally {
+      server.stop?.();
+    }
   })
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import z from "zod/v4";
 
 import { BlazyConstructor } from "src/app/constructors";
 
@@ -74,5 +75,34 @@ describe("post()", () => {
     expect(aProtocols.POST).not.toBe(bProtocols.POST);
     expect(aProtocols.POST.metadata.subRoute).toBe("/a");
     expect(bProtocols.POST.metadata.subRoute).toBe("/b");
+  });
+
+  it("returns a friendly failed validation response for invalid POST bodies", async () => {
+    const app = BlazyConstructor.createEmpty().post({
+      path: "/users",
+      args: z.object({ name: z.string() }),
+      handler: (ctx: any) => ({ body: { created: ctx.request.body.name } }),
+    });
+
+    const response = await app.route({
+      reqData: {
+        url: "/users",
+        protocol: "POST",
+        verb: "POST",
+        body: { name: 123 },
+        headers: {},
+      },
+    }) as Response;
+
+    expect(response).toBeInstanceOf(Response);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      type: "validation_failed",
+      body: {
+        fieldErrors: {
+          name: expect.any(Array),
+        },
+      },
+    });
   });
 });

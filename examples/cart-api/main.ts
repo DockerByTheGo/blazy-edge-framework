@@ -2,8 +2,6 @@ import { Message } from "src";
 import { BlazyConstructor } from "src/app/constructors";
 import z from "zod/v4";
 
-
-
 const cartService = {
     config: {},
     getAll: () => ["cart 1", "cart 2", "cart 3"]
@@ -14,7 +12,9 @@ const server = BlazyConstructor
     .get(
         {
             path: "/:hi",
-            handler: v => ({ ji: v.hi }),
+            handler: v => {
+                console.log(v.request)
+                return{ ji: v.request.params.hi }},
         }
     )
     .ws({
@@ -24,7 +24,7 @@ const server = BlazyConstructor
                 "new-message": new Message(
                     z.object({ content: z.string() }),
                     ctx => {
-                        console.log("Sending message to room", ctx.data, "with content:", ctx.data.content);
+                        console.log("Sending message to room", ctx, "with content:", ctx.message.body.content);
                     }
                 )
             },
@@ -32,7 +32,7 @@ const server = BlazyConstructor
                 "new-message": new Message(
                     z.object({ content: z.string() }),
                     ctx => {
-                        console.log("Received message for room", ctx, "with content:", ctx.data.content);
+                        console.log("Received message for room", ctx, "with content:", ctx.message.body.content);
                     }
                 )
             },
@@ -40,9 +40,14 @@ const server = BlazyConstructor
     })
     .rpc({
         name: "getCart",
-        handler: () => {
+        handler: ctx => {
+            console.log(ctx.request.body)
+
             return { body: cartService.getAll() };
         },
+        args: z.object({
+            id: z.string(),
+        })
     })
 
 server.listen(3005)

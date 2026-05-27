@@ -28,14 +28,14 @@ const res = BlazyConstructor
             "newMessage": new Message(
                 z.object({userId5: z.string()}), 
                 ctx => {
-                    ctx.data.userId // automatic validation
+                    ctx.message.body.userId5 // automatic validation
                 }
             ),  
         },
         messagesItCanSend: {
             newMessage: new Message(
                 z.object({ text2: z.string() }),
-                ctx => ctx.data.hi45
+                ctx => ctx.message.body.hi45
             )
         }
     },
@@ -57,4 +57,4 @@ const client = res.createClient().createClient()("htto://locahost:3000")
 
 client.invoke[":dynamic-param"]["/"].GET().then(v => v.map(v => v.at(0)))
 client.invoke[":dynamic-para"]["/"].GET()
-client.invoke.chat["/"].ws.handle.newMessage(data => {data.data.text})
+client.invoke.chat["/"].ws.handle.newMessage(ctx => {ctx.message.body.text2})
