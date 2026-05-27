@@ -33,6 +33,7 @@ import type { ZodObject } from "zod/v4";
 const FILE_SAVER_SERVICE_NAME = "fileSaver";
 const CACHE_SERVICE_NAME = "cache";
 
+type Handler<TArg> = (arg: TArg) => unknown;
 type EmptyHooks = ReturnType<typeof Hooks.empty>;
 const subAppTypes = ["contained", "applyToParent", "global"] as const;
 type SubAppTypes = (typeof subAppTypes)[number];
@@ -468,8 +469,10 @@ export class Blazy<
 
   // note if you try to introduce optional param it will lead to weird behaviour where it  creates two paths for one added handler one which is [''] and the other is the desried
   post<
-    // THandler extends (arg: (TArgs extends undefined ? URecord : z.infer<TArgs>) & ExtractParams<TPath>) => unknown,
-    THandler extends HttpVerbHandler<HttpVerbHandlerCtx<TDCtx>>,
+    THandler extends HttpVerbHandler<HttpVerbHandlerCtx<
+      TDCtx,
+      TArgs extends undefined ? URecord : z.infer<TArgs>, ExtractParams<TPath>>,
+      any>,
     TArgs extends z.ZodObject | undefined,
     TPath extends string,
   >(config: {
@@ -500,34 +503,34 @@ export class Blazy<
   }
 
   getAll<
-    THandler extends (arg: TArgs extends undefined ? URecord : TArgs) => unknown,
-    TArgs extends URecord | undefined,
+    THandler extends HttpVerbHandler<HttpVerbHandlerCtx<
+      TDCtx,
+      {},
+      {},
+      any>,
   >(config: {
-    args?: TArgs;
     handler: THandler;
   },
   ) {
     return this.get({
       path: "/",
       handler: config.handler,
-      args: config.args,
     });
   }
 
   get<
     TPath extends string,
-    THandler extends (
-      arg: And<[
-        (TArgs extends undefined ? {} : z.infer<TArgs>),
+    THandler extends Handler<
+      HttpVerbHandlerCtx<
+        {},
+        {},
         ExtractParams<TPath>,
-        //  TDCtx
-      ]>
-    ) => unknown,
-    TArgs extends ZodObject | undefined,
+      >
+    >
+    ,
   >(config: {
     path: TPath;
     handler: THandler;
-    args?: TArgs;
   },
   ): Blazy<
     TRouterTree
@@ -545,7 +548,6 @@ export class Blazy<
       path: config.path,
       // handler: v => v.path === "GET" ? config.handler(v) : this.notFound(),
       handler: config.handler,
-      args: config.args,
       meta: { verb: "GET", protocol: "GET" as const },
       cache: config.cache,
     });
@@ -575,7 +577,10 @@ export class Blazy<
     TArgs extends z.ZodObject | undefined,
   >(v: {
     name: TName;
-    handler: (arg: (TArgs extends undefined ? URecord : z.infer<TArgs>)) => THandlerReturn;
+    handler: (
+      arg: HttpVerbHandlerCtx<{}, TArgs extends undefined ? {} : z.infer<TArgs>, {}, {}>
+    )
+      => THandlerReturn;
     args?: TArgs;
   },
   ) {

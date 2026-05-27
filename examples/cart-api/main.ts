@@ -2,8 +2,6 @@ import { Message } from "src";
 import { BlazyConstructor } from "src/app/constructors";
 import z from "zod/v4";
 
-
-
 const cartService = {
     config: {},
     getAll: () => ["cart 1", "cart 2", "cart 3"]
@@ -15,8 +13,8 @@ const server = BlazyConstructor
         {
             path: "/:hi",
             handler: v => {
-                console.log(v)
-                return{ ji: v.hi }},
+                console.log(v.request)
+                return{ ji: v.request.params.hi }},
         }
     )
     .ws({
@@ -43,7 +41,7 @@ const server = BlazyConstructor
     .rpc({
         name: "getCart",
         handler: ctx => {
-            console.log(ctx)
+            console.log(ctx.request.body)
 
             return { body: cartService.getAll() };
         },
