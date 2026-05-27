@@ -389,6 +389,7 @@ export class Blazy<
     handler: Thandler;
     args?: Args;
     meta?: URecord & { protocol?: TProtocol };
+    cache?: any;
   },
   ): Blazy<
     TRouterTree
@@ -469,16 +470,26 @@ export class Blazy<
 
   // note if you try to introduce optional param it will lead to weird behaviour where it  creates two paths for one added handler one which is [''] and the other is the desried
   post<
-    THandler extends HttpVerbHandler<HttpVerbHandlerCtx<
-      TDCtx,
-      TArgs extends undefined ? URecord : z.infer<TArgs>, ExtractParams<TPath>>,
-      any>,
-    TArgs extends z.ZodObject | undefined,
     TPath extends string,
+    TArgs extends z.ZodObject | undefined = undefined,
+    THandler extends Handler<
+      HttpVerbHandlerCtx<
+        TDCtx,
+        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+        ExtractParams<TPath>
+      >
+    > = Handler<
+      HttpVerbHandlerCtx<
+        TDCtx,
+        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+        ExtractParams<TPath>
+      >
+    >,
   >(config: {
     path: TPath;
     handler: THandler;
     args?: TArgs;
+    cache?: any;
   },
   ): Blazy<
     TRouterTree
@@ -503,13 +514,23 @@ export class Blazy<
   }
 
   getAll<
-    THandler extends HttpVerbHandler<HttpVerbHandlerCtx<
-      TDCtx,
-      {},
-      {},
-      any>,
+    TArgs extends z.ZodObject | undefined = undefined,
+    THandler extends Handler<
+      HttpVerbHandlerCtx<
+        TDCtx,
+        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+        {}
+      >
+    > = Handler<
+      HttpVerbHandlerCtx<
+        TDCtx,
+        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+        {}
+      >
+    >,
   >(config: {
     handler: THandler;
+    args?: TArgs;
   },
   ) {
     return this.get({
@@ -520,17 +541,25 @@ export class Blazy<
 
   get<
     TPath extends string,
+    TArgs extends z.ZodObject | undefined = undefined,
     THandler extends Handler<
       HttpVerbHandlerCtx<
-        {},
-        {},
-        ExtractParams<TPath>,
+        TDCtx,
+        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+        ExtractParams<TPath>
       >
-    >
-    ,
+    > = Handler<
+      HttpVerbHandlerCtx<
+        TDCtx,
+        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+        ExtractParams<TPath>
+      >
+    >,
   >(config: {
     path: TPath;
     handler: THandler;
+    args?: TArgs;
+    cache?: any;
   },
   ): Blazy<
     TRouterTree
@@ -548,6 +577,7 @@ export class Blazy<
       path: config.path,
       // handler: v => v.path === "GET" ? config.handler(v) : this.notFound(),
       handler: config.handler,
+      args: config.args,
       meta: { verb: "GET", protocol: "GET" as const },
       cache: config.cache,
     });
