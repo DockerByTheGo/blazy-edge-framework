@@ -6,6 +6,8 @@ export type WebSocketMessage = {
   body: URecord;
   path: string;
   connectionId?: string;
+  params?: URecord;
+  ws?: WebSocket;
 };
 
 export type WebSocketResponse = {
@@ -27,10 +29,18 @@ export type WebSocketContext = {
   sendTo: (connectionId: string, message: WebSocketResponse) => void;
 };
 
+export type WebSocketHandlerCtx<TBody, TParams extends URecord> = {
+  message: {
+    body: TBody;
+    params: TParams;
+  };
+  ws: WebSocket;
+};
+
 export class Message<TParams extends URecord, TSchema extends z.ZodObject> {
   constructor(
     public readonly schema: TSchema,
-    public readonly handler: (ctx: { data: z.infer<TSchema>; ws: WebSocket; params: TParams }) => void,
+    public readonly handler: (ctx: WebSocketHandlerCtx<z.infer<TSchema>, TParams>) => void,
   ) { }
 }
 
@@ -45,7 +55,7 @@ export type WeboscketRouteCleintRepresentation<TServerMessagesSchema extends Sch
   };
   send: {
     [Message in KeyOfOnlyStringKeys<TServerMessagesSchema["messagesItCanRecieve"]>]: (
-      data: (Parameters<TServerMessagesSchema["messagesItCanRecieve"][Message]["handler"]>[0])["data"],
+      body: (Parameters<TServerMessagesSchema["messagesItCanRecieve"][Message]["handler"]>[0])["message"]["body"],
     ) => void
   };
 };

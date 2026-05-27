@@ -1,1 +1,1 @@
-export type { IAuthService, TokenResult } from "./IAuthService";
+export type { IAuthService, ServiceResult, TokenResult } from "./IAuthService";

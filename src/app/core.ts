@@ -9,11 +9,12 @@ import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Pat
 import { entries } from "@blazyts/better-standard-library";
 
 import type { HttpVerbHandlerCtx } from "src/route/handlers";
-import type { Schema } from "src/route/handlers/variations/websocket/types";
+import type { Schema, WebSocketMessage } from "src/route/handlers/variations/websocket/types";
 import type { ExtractParams } from "src/route/matchers/dsl/types/extractParams";
 
-import { HtmlFileResponse, HtmlResponse, JsonResponse } from "src/response";
+import { FailedValidationResponse, HtmlFileResponse, HtmlResponse, JsonResponse } from "src/response";
 import { HttpVerbHandler } from "src/route/handlers";
+import { createHttpVerbHandlerCtx, getHttpValidationTarget } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
 import { FileRouteHandler } from "src/route/handlers/variations/file/File";
 import { normalizeFileRoute } from "src/route/handlers/variations/file/utils";
 import { WebsocketRouteHandler } from "src/route/handlers/variations/websocket";
@@ -338,14 +339,21 @@ export class Blazy<
     };
 
     const handlerFn = (arg: Parameters<Thandler>[0]) => {
+      const ctx = createHttpVerbHandlerCtx(arg);
       if (v.args) {
-        const res = v.args.safeParse(arg);
+        const res = v.args.safeParse(getHttpValidationTarget(arg));
         if (!res.success) {
-          return res.error;
+          return FailedValidationResponse(res.error);
         }
-        return executeHandler(res.data as HandlerArg) as ReturnType<Thandler>;
+        return executeHandler({
+          ...ctx,
+          request: {
+            ...ctx.request,
+            body: res.data,
+          },
+        } as HandlerArg) as ReturnType<Thandler>;
       }
-      return executeHandler(arg as HandlerArg) as ReturnType<Thandler>;
+      return executeHandler(ctx as HandlerArg) as ReturnType<Thandler>;
     };
 
     const finalHandler = new HttpVerbHandler(handlerFn, metadata);
@@ -387,6 +395,7 @@ export class Blazy<
     return this.http<TPath, THandler, any, "POST">({
       path: config.path,
       handler: v => config.handler(v),
+      args: config.args,
       meta: { verb: "POST", protocol: "POST" as const },
       cache: config.cache,
     });
@@ -566,7 +575,7 @@ export class Blazy<
       },
 
       websocket: {
-        data: {} as WsMessage & { connectionId?: string },
+        data: {} as WebSocketMessage & { connectionId?: string; pathname?: string },
         open: (ws) => {
           // Generate a unique connection ID
           const connectionId = crypto.randomUUID();
@@ -574,7 +583,7 @@ export class Blazy<
           console.log("WebSocket connected:", connectionId, "pathname:", ws.data.pathname);
         },
         message: (ws, message) => {
-          const parsedMessage = JSON.parse(message.toString()) as WsMessage;
+          const parsedMessage = JSON.parse(message.toString()) as WebSocketMessage;
 
           // Find the handler for this route
           const handlerOptional = treeRouteFinder(this.routes, new Path(ws.data.pathname));
@@ -595,14 +604,11 @@ export class Blazy<
             return;
           }
 
-          // Call the message handler directly from the schema
-          const messageHandler = routeHandler.schema.messagesItCanRecieve[parsedMessage.type];
-          if (messageHandler) {
-            messageHandler.handler({ data: parsedMessage.body, ws });
-          }
-          else {
-            console.error("No message handler for type:", parsedMessage.type);
-          }
+          routeHandler.handleRequest({
+            ...parsedMessage,
+            path: parsedMessage.path ?? ws.data.pathname,
+            ws,
+          });
         },
         close: (ws) => {
           console.log("WebSocket closed:", ws.data.connectionId);

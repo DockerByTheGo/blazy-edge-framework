@@ -361,11 +361,11 @@ const app = BlazyConstructor
           z.object({
             cartId: z.string(),
           }),
-          ({ data, ws }) => {
+          ({ message, ws }) => {
             ws.send(JSON.stringify({
               type: "cartJoined",
               body: {
-                cartId: data.cartId,
+                cartId: message.body.cartId,
               },
             }));
           },
@@ -376,10 +376,10 @@ const app = BlazyConstructor
             sku: z.string(),
             quantity: z.number().int().positive(),
           }),
-          ({ data, ws }) => {
+          ({ message, ws }) => {
             const reservation = inventory.reserve({
-              sku: data.sku,
-              quantity: data.quantity,
+              sku: message.body.sku,
+              quantity: message.body.quantity,
               requestId: "ws-message",
             });
 

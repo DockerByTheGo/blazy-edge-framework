@@ -14,7 +14,9 @@ const server = BlazyConstructor
     .get(
         {
             path: "/:hi",
-            handler: v => ({ ji: v.hi }),
+            handler: v => {
+                console.log(v)
+                return{ ji: v.hi }},
         }
     )
     .ws({
@@ -24,7 +26,7 @@ const server = BlazyConstructor
                 "new-message": new Message(
                     z.object({ content: z.string() }),
                     ctx => {
-                        console.log("Sending message to room", ctx.data, "with content:", ctx.data.content);
+                        console.log("Sending message to room", ctx, "with content:", ctx.message.body.content);
                     }
                 )
             },
@@ -32,7 +34,7 @@ const server = BlazyConstructor
                 "new-message": new Message(
                     z.object({ content: z.string() }),
                     ctx => {
-                        console.log("Received message for room", ctx, "with content:", ctx.data.content);
+                        console.log("Received message for room", ctx, "with content:", ctx.message.body.content);
                     }
                 )
             },
@@ -40,9 +42,14 @@ const server = BlazyConstructor
     })
     .rpc({
         name: "getCart",
-        handler: () => {
+        handler: ctx => {
+            console.log(ctx)
+
             return { body: cartService.getAll() };
         },
+        args: z.object({
+            id: z.string(),
+        })
     })
 
 server.listen(3005)
