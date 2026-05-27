@@ -38,6 +38,12 @@ const server = BlazyConstructor
             },
         }
     })
+    .rpc({
+        name: "getCart",
+        handler: () => {
+            return { body: cartService.getAll() };
+        },
+    })
 
 server.listen(3005)
 // const client =     server.createClient().createClient()("")
