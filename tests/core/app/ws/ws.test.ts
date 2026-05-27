@@ -114,7 +114,7 @@ describe("ws()", () => {
 
   it("ws and post on the same path coexist in the router tree", () => {
     const app = BlazyConstructor.createEmpty()
-      .post({ path: "/dual", handeler: () => ({ body: {} }) })
+      .post({ path: "/dual", handler: () => ({ body: {} }) })
       .ws({ path: "/dual", messages: { messagesItCanRecieve: {}, messagesItCanSend: {} } });
 
     const protocols = getProtocols(app.routes, "/dual");

@@ -40,7 +40,7 @@ describe("hTTP handlers", () => {
   it("registers and resolves a POST handler on a hardcoded path", () => {
     const app = BlazyConstructor.createEmpty().post({
       path: "/posts/create",
-      handeler: ({ title }: { title: string }) => ({
+      handler: ({ title }: { title: string }) => ({
         body: { created: true, title, type: "hardcoded-post" },
       }),
     });
@@ -57,7 +57,7 @@ describe("hTTP handlers", () => {
   it("registers and resolves a POST handler on a dynamic path", () => {
     const app = BlazyConstructor.createEmpty().post({
       path: "/users/:userId/posts/:postId",
-      handeler: ({ userId, postId, params, body }: { userId: string; postId: string; params: { userId: string; postId: string }; body: { content: string } }) => ({
+      handler: ({ userId, postId, params, body }: { userId: string; postId: string; params: { userId: string; postId: string }; body: { content: string } }) => ({
         body: {
           userId,
           postId,

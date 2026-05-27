@@ -42,13 +42,13 @@ export class Blazy<
   Tservices extends Record<string, Service<ServiceBase<URecord>>> = {},
   TDCtx extends Tservices & THooks["beforeHandler"]["TGetLastHookReturnType"] = Tservices & THooks["beforeHandler"]["TGetLastHookReturnType"],
 > extends RouterObject<{
-    beforeHandler: EmptyHooks;
-    afterHandler: EmptyHooks;
-    onError: EmptyHooks;
-    onStartup: EmptyHooks;
-    onShutdown: EmptyHooks;
+  beforeHandler: EmptyHooks;
+  afterHandler: EmptyHooks;
+  onError: EmptyHooks;
+  onStartup: EmptyHooks;
+  onShutdown: EmptyHooks;
 
-  }, TRouterTree> {
+}, TRouterTree> {
   public services: ServiceManager<Tservices>;
 
   constructor(
@@ -242,8 +242,6 @@ export class Blazy<
   ) {
   }
 
-  routifyRpc() { }
-
   // allows you to call multiple methods on the app while using the app object, this allosws for use cases where you may need to access the app object but do not wanna breake method chaining for example
   /*
 
@@ -255,39 +253,6 @@ export class Blazy<
   block<TReturn extends Blazy>(func: (app: this) => TReturn): TReturn {
     return func(this);
   }
-
-  /**
-   * Adds a simple route for a function with schema validation.
-   * Creates an RPC-style route at `/rpc/{functionName}` that validates the request body
-   * against the function's argument schema and executes the function.
-   * the idea is that if you already have a function defined somewhere wjhich you want to quickly expose to use that, but if you are gonna be writing the func inside the router just use the http methoid which offers a much more elegant api for
-   * @param func - The function to add as a route.
-   * @template TFunc - The type of the function.
-   */
-  // simpleAddRoute<TFunc extends IFunc<string, Schema, URecord>>(func: TFunc) {
-  //   this.addRoute({
-  //     routeMatcher: new NormalRouting(`/rpc/${func.name}`),
-  //     handler: new NormalRouteHandler(ctx => {
-  //       // return new BasicValidator(func.argsSchema).validate({}).try({
-  //       //   ifError: {
-  //       //     typeMismatch: v => new Response(JSON.stringify({ error: "Invalid schema", details: v }), {
-  //       //       status: 400,
-  //       //       headers: {
-  //       //         "Content-Type": "application/json",
-  //       //       },
-  //       //     }),
-  //       //   },
-  //       //   "ifSuccess": v => new Response(JSON.stringify({ result: func.execute(v) }), {
-  //       //     status: 200,
-  //       //     headers: {
-  //       //       "Content-Type": "application/json",
-  //       //     },
-  //       //   }),
-  //       // })
-  //     }),
-  //     hooks: {}
-  //   });
-  // }
 
   // by default it uses the file name (or provided route) as the exposed route
   file<
@@ -403,7 +368,7 @@ export class Blazy<
     TPath extends string,
   >(config: {
     path: TPath;
-    handeler: THandler;
+    handler: THandler;
     args?: TArgs;
   },
   ): Blazy<
@@ -421,7 +386,7 @@ export class Blazy<
     // (this.services.services.cache as CacheService).registerHandler(`POST:${config.path}`, new NormalRouteHandler(config.handeler, { subRoute: config.path, verb: "POST", protocol: "POST" }))
     return this.http<TPath, THandler, any, "POST">({
       path: config.path,
-      handler: v => config.handeler(v),
+      handler: v => config.handler(v),
       meta: { verb: "POST", protocol: "POST" as const },
       cache: config.cache,
     });
@@ -446,10 +411,10 @@ export class Blazy<
     TPath extends string,
     THandler extends (
       arg: And<[
-      (TArgs extends undefined ? {} : z.infer<TArgs>),
-       ExtractParams<TPath>,
-      //  TDCtx
-      ]> 
+        (TArgs extends undefined ? {} : z.infer<TArgs>),
+        ExtractParams<TPath>,
+        //  TDCtx
+      ]>
     ) => unknown,
     TArgs extends ZodObject | undefined,
   >(config: {
@@ -497,54 +462,6 @@ export class Blazy<
     });
   }
 
-  /**
-   * Adds a route from a typed function.
-   * @param name - The name of the route.
-   * @param func - The typed function to add as a route.
-   * @template TName - The name type.
-   * @template TFunc - The function type.
-   * @returns The result of adding the route.
-   */
-  fromFunc<
-    TName extends string,
-    TFunc extends IFunc<TName, any, any>,
-  >(name: TName,
-    func: TFunc,
-  ): this {
-    return this.rpcFromFunction(name, func);
-  }
-
-  /**
-   * Adds a route from a normal function.
-   * Converts the function to a typed function and adds it as a route.
-   * Creats a REST endpoint
-   * Automatically adds the result to the response body
-   * @param name - The name of the route.
-   * @param func - The normal function to add as a route.
-   * @template TFunc - The function type.
-   * @template TName - The name type.
-   * @returns The result of adding the route.
-   *
-   */
-  fromNormalFunc<
-    TFunc extends (arg: { body: URecord }) => unknown,
-    TName extends string,
-  >(name: TName,
-    func: TFunc,
-  ) {
-    return this.fromFunc(name, NormalFunc.fromFunc(func, name));
-  }
-
-  /*
-    json rpc version of routify
-  */
-  rpcRoutify<T extends Record<string, IFunc<string, any, any>>>(funcs: T): this {
-    return entries(funcs).reduce(
-      (app, [, func]) => app.rpcFromFunction(func),
-      this as this,
-    );
-  }
-
   rpc<
     TName extends string,
     THandlerReturn,
@@ -557,7 +474,7 @@ export class Blazy<
   ) {
     return this.post({
       path: `/rpc/${v.name}`,
-      handeler: v.handler,
+      handler: v.handler,
       args: v.args,
       meta: { protocol: "POST", verb: "POST" },
     });
@@ -566,37 +483,10 @@ export class Blazy<
   /*
   exposes a JSON RPC standard abiding the JSON rpc spec input and output, that is different from fromFunction which turns it into REST instead, it uses the custom Function construct from the better standard library which is designed to keep info
   */
-  rpcFromFunction<
-    TFunc extends IFunc<string, any, any>,
-  >(func: TFunc): this;
-  rpcFromFunction<
-    TName extends string,
-    TFunc extends IFunc<string, any, any>,
-  >(name: TName, func: TFunc): this;
-  rpcFromFunction<
-    TFunc extends IFunc<string, any, any>,
-  >(nameOrFunc: string | TFunc,
-    maybeFunc?: TFunc,
-  ) {
-    const func = typeof nameOrFunc === "string" ? maybeFunc : nameOrFunc;
-    if (!func) {
-      throw new Error("rpcFromFunction requires a function definition.");
-    }
-
-    const routeName = typeof nameOrFunc === "string" ? nameOrFunc : func.name;
-    const subRoute = `/rpc/${routeName}`;
-    return this.post({
-      handeler: (ctx: { body?: Parameters<TFunc["execute"]>[0] }) => {
-        const args = ctx.body ?? ({} as Parameters<TFunc["execute"]>[0]);
-        return func.execute(args);
-      },
-      path: subRoute,
-    }) as this;
-  }
 
   ws<
     TPath extends string,
-    TMessages extends Schema<{params: ExtractParams<TPath>}>,
+    TMessages extends Schema<{ params: ExtractParams<TPath> }>,
   >(v: {
     path: TPath;
     messages: TMessages;
@@ -621,10 +511,6 @@ export class Blazy<
       protocol: "ws",
     });
   }
-
-  wsFromObject() { }
-
-  brpcRoutify() { }
 
   createClient(): ClientBuilder<TRouterTree, { beforeSend: HooksDefault; afterReceive: HooksDefault; onErrored: HooksDefault }> {
     return CleintBuilderConstructors.fromRouteTree(this.routes);

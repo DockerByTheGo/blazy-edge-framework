@@ -67,7 +67,7 @@ describe("get()", () => {
 
   it("post and get on the same path coexist in the router tree", () => {
     const app = BlazyConstructor.createEmpty()
-      .post({ path: "/resource", handeler: () => ({ body: { method: "post" } }) })
+      .post({ path: "/resource", handler: () => ({ body: { method: "post" } }) })
       .get({ path: "/resource", handler: () => ({ body: { method: "get" } }), args: undefined });
 
     const protocols = getProtocols(app.routes, "/resource");
