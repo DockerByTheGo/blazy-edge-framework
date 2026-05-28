@@ -27,8 +27,8 @@ describe("hTTP handlers", () => {
       path: "/users/:id",
       handler: ctx => ({
         body: {
-          id: ctx.request.params.id,
-          requestParamId: ctx.request.params.id,
+          id: ctx.request.params.get("id"),
+          requestParamId: ctx.request.params.get("id"),
           type: "dynamic-get",
         },
       }),
@@ -47,7 +47,7 @@ describe("hTTP handlers", () => {
     const app = BlazyConstructor.createEmpty().post({
       path: "/posts/create",
       handler: ctx => ({
-        body: { created: true, title: ctx.request.body.title, type: "hardcoded-post" },
+        body: { created: true, title: ctx.request.body.get("title"), type: "hardcoded-post" },
       }),
     });
 
@@ -65,9 +65,9 @@ describe("hTTP handlers", () => {
       path: "/users/:userId/posts/:postId",
       handler: ctx => ({
         body: {
-          userId: ctx.request.params.userId,
-          postId: ctx.request.params.postId,
-          content: ctx.request.body.content,
+          userId: ctx.request.params.get("userId"),
+          postId: ctx.request.params.get("postId"),
+          content: ctx.request.body.get("content"),
           type: "dynamic-post",
         },
       }),
@@ -126,9 +126,10 @@ describe("hTTP handlers", () => {
     const app = BlazyConstructor.createEmpty().post({
       path: "/ctx",
       handler: ctx => ctx.response.standard({
-        body: ctx.request.body,
+        body: ctx.request.body.raw(),
+        header: ctx.request.headers.get("x-request-id"),
         method: ctx.request.method,
-        params: ctx.request.params,
+        params: ctx.request.params.raw(),
         path: ctx.request.path,
         query: ctx.request.query,
         whatwgMethod: ctx.request.whatwg().method,
@@ -146,13 +147,14 @@ describe("hTTP handlers", () => {
         protocol: "POST",
         verb: "POST",
         body: { ok: true },
-        headers: {},
+        headers: { "x-request-id": "req_123" },
       },
     });
 
     expect(response).toBeInstanceOf(Response);
     await expect(response.json()).resolves.toEqual({
       body: { ok: true },
+      header: "req_123",
       method: "POST",
       params: {},
       path: "/ctx",

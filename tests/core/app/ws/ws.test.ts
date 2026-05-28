@@ -70,7 +70,7 @@ describe("ws()", () => {
           "join-room": new Message(
             z.object({ roomId: z.string() }),
             ({ message }) => {
-              expectTypeOf(message.body).toEqualTypeOf<{ roomId: string }>();
+              expectTypeOf(message.body.get("roomId")).toEqualTypeOf<string>();
             },
           ),
         },
@@ -89,9 +89,24 @@ describe("ws()", () => {
       .parameters
       .toEqualTypeOf<[{ roomId: string }]>();
 
+    type ExpectedRoomJoinedHandler = (ctx: {
+      message: {
+        body: {
+          get: <K extends "roomId" | "members">(v: K) => {
+            roomId: string;
+            members: number;
+          }[K];
+        };
+        params: {
+          raw: () => Record<string, unknown>;
+        };
+      };
+      ws: WebSocket;
+    }) => void;
+
     expectTypeOf(client.invoke.rooms["/"].ws.handle["room-joined"])
       .parameters
-      .toEqualTypeOf<[(ctx: { message: { body: { roomId: string; members: number }; params: Record<string, unknown> }; ws: WebSocket }) => void]>();
+      .toMatchObjectType<[ExpectedRoomJoinedHandler]>();
   });
 
   it("contextually types inline message handlers from their schema", () => {
@@ -103,7 +118,8 @@ describe("ws()", () => {
             schema: z.object({ id: z.string(), count: z.number() }),
             handler: ({ message }) => {
               expectTypeOf(message.body).not.toBeAny();
-              expectTypeOf(message.body).toEqualTypeOf<{ id: string; count: number }>();
+              expectTypeOf(message.body.get("id")).toEqualTypeOf<string>();
+              expectTypeOf(message.body.get("count")).toEqualTypeOf<number>();
             },
           },
         },

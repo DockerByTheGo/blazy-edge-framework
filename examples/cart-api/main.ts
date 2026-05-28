@@ -14,7 +14,7 @@ const server = BlazyConstructor
             path: "/:hi",
             handler: v => {
                 console.log(v.request)
-                return{ ji: v.request.params.hi }},
+                return{ ji: v.request.params }},
         }
     )
     .ws({
@@ -24,6 +24,7 @@ const server = BlazyConstructor
                 "new-message": new Message(
                     z.object({ content: z.string() }),
                     ctx => {
+                        ctx.ws.message("", {})
                         console.log("Sending message to room", ctx, "with content:", ctx.message.body.content);
                     }
                 )
@@ -41,7 +42,7 @@ const server = BlazyConstructor
     .rpc({
         name: "getCart",
         handler: ctx => {
-            console.log(ctx.request.body)
+            console.log(ctx.request.body.raw())
 
             return { body: cartService.getAll() };
         },
@@ -51,6 +52,12 @@ const server = BlazyConstructor
     })
 
 server.listen(3005)
-// const client =     server.createClient().createClient()("")
+const client =     server.createClient().createClient()("")
 
+client.invoke.ws[":id"]["/"].ws.handle["new-message"](v => {
 
+})
+
+client.invoke.rpc.getCart["/"].POST().then(v => v.map(v => {
+    v.body
+}))

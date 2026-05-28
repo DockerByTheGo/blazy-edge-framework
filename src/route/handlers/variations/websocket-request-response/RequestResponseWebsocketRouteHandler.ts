@@ -1,6 +1,7 @@
 import type { URecord } from "@blazyts/better-standard-library";
 import type z from "zod/v4";
 
+import type { TypedRecord } from "../http/HttpVerbRouteHandler";
 import type { Message } from "../websocket/types";
 
 import { WebsocketRouteHandler } from "../websocket/WebsocketRouteHandler";
@@ -27,7 +28,7 @@ export class RequestResponseWebsocket<TSchema extends {
 
   constructor(
     public readonly schema: TSchema,
-    handler: (ctx: { message: { body: z.infer<TSchema["ReQuestSchema"]>; params: URecord }; ws: WebSocket }) => z.infer<TSchema["ResponseSchema"]>,
+    handler: (ctx: { message: { body: TypedRecord<z.infer<TSchema["ReQuestSchema"]> & URecord>; params: TypedRecord<URecord> }; ws: WebSocket }) => z.infer<TSchema["ResponseSchema"]>,
     metadata,
   ) {
     this.websocketRouteHandler = new WebsocketRouteHandler(
@@ -38,7 +39,7 @@ export class RequestResponseWebsocket<TSchema extends {
             handler: ctx => ctx.ws.send(JSON.stringify({
               body: handler(ctx),
               type: "response",
-              requestId: ctx.message.body.requestId,
+              requestId: ctx.message.body.get("requestId"),
             })),
           },
         },

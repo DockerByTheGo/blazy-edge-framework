@@ -1,8 +1,11 @@
 import type { IMapable } from "@blazyts/better-standard-library";
 
 import { describe, expectTypeOf, it } from "vitest";
+import z from "zod/v4";
 
+import { BlazyConstructor } from "src/app/constructors";
 import { Client } from "src/client/Client";
+import { TypedRecord } from "src/route/handlers";
 
 import { makeMockHandler, makeNonFunctionRepresentationHandler, protocolLeaf } from "./clientTestHelpers";
 
@@ -80,6 +83,22 @@ describe("client types", () => {
       body: { title: string; tags: string[] };
       query: { draft?: boolean };
     }]>();
+  });
+
+  it("HTTP verb clients expose only the request body as their argument", () => {
+    const app = BlazyConstructor
+      .createEmpty()
+      .post({
+        path: "/products",
+        handler: ctx => ({ body: { created: ctx.request.body.get("name") } }),
+        args: z.object({ name: z.string() }),
+      });
+    const client = app.createClient().createClient()("http://localhost:3000");
+
+    expectTypeOf(client.invoke.products["/"].POST).parameters.toEqualTypeOf<[{ name: string }]>();
+    expectTypeOf(client.invoke.products["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{
+      body: TypedRecord<{ created: string }>;
+    }>>>();
   });
 
   it("wraps awaited handler return types in IMapable", () => {

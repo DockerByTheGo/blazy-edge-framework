@@ -81,7 +81,7 @@ describe("post()", () => {
     const app = BlazyConstructor.createEmpty().post({
       path: "/users",
       args: z.object({ name: z.string() }),
-      handler: (ctx: any) => ({ body: { created: ctx.request.body.name } }),
+      handler: (ctx: any) => ({ body: { created: ctx.request.body.get("name") } }),
     });
 
     const response = await app.route({
@@ -104,5 +104,23 @@ describe("post()", () => {
         },
       },
     });
+  });
+
+  it("wraps valid POST bodies with the typed record helper", async () => {
+    const app = BlazyConstructor.createEmpty().post({
+      path: "/users",
+      args: z.object({ name: z.string() }),
+      handler: ctx => ({ body: { created: ctx.request.body.get("name") } }),
+    });
+
+    await expect(app.route({
+      reqData: {
+        url: "/users",
+        protocol: "POST",
+        verb: "POST",
+        body: { name: "Ada" },
+        headers: {},
+      },
+    })).resolves.toEqual({ body: { created: "Ada" } });
   });
 });

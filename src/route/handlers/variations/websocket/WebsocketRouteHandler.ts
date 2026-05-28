@@ -1,10 +1,10 @@
 import type { IRouteHandler } from "@blazyts/backend-lib";
 import type { IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server";
 
-import type { Schema, WeboscketRouteCleintRepresentation, WebSocketMessage, WebSocketResponse } from "./types";
-
 import { formatFailedValidation } from "src/response";
+import { TypedRecord } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
 
+import type { Schema, WeboscketRouteCleintRepresentation, WebSocketMessage, WebSocketMessenger, WebSocketResponse } from "./types";
 import { getWebsocketConnection } from "./WebsocketConnectionSingleton";
 
 type WebsocketRouteMetadata = Partial<IRouteHandlerMetadata> & {
@@ -21,6 +21,23 @@ export class WebsocketRouteHandler<
   ) {
   }
 
+  private createWebSocketMessenger(ws: WebSocket | undefined): WebSocketMessenger<TMessagesSchema["messagesItCanSend"]> {
+    const socket = (ws ?? { send: () => {} }) as WebSocketMessenger<TMessagesSchema["messagesItCanSend"]>;
+
+    socket.message = (type, body) => {
+      const messageSchema = this.schema.messagesItCanSend[type];
+      const parsed = messageSchema.schema.parse(body);
+
+      socket.send(JSON.stringify({
+        body: parsed,
+        path: this.metadata.subRoute,
+        type,
+      }));
+    };
+
+    return socket;
+  }
+
   handleRequest(message: WebSocketMessage): WebSocketResponse {
     const messageHandler = this.schema.messagesItCanRecieve[message.type];
     if (messageHandler) {
@@ -28,10 +45,10 @@ export class WebsocketRouteHandler<
       if (parsed.success) {
         messageHandler.handler({
           message: {
-            body: parsed.data,
-            params: (message.params ?? {}) as any,
+            body: new TypedRecord(parsed.data),
+            params: new TypedRecord((message.params ?? {}) as any),
           },
-          ws: message.ws as WebSocket,
+          ws: this.createWebSocketMessenger(message.ws),
         });
       }
       else {

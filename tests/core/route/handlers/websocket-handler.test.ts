@@ -62,7 +62,7 @@ describe("WebsocketRouteHandler", () => {
             ping: new Message(pingSchema, () => ({ pinged: true })),
           },
           messagesItCanSend: {
-            pong: new Message(pingSchema, ({ message }) => message.body),
+            pong: new Message(pingSchema, ({ message }) => message.body.raw()),
           },
         },
       });
@@ -102,5 +102,76 @@ describe("WebsocketRouteHandler", () => {
         },
       },
     });
+  });
+
+  it("wraps websocket message bodies and params with the typed record helper", () => {
+    const messageHandler = vi.fn();
+    const handler = new WebsocketRouteHandler({
+      messagesItCanRecieve: {
+        join: new Message(
+          z.object({ userId: z.string() }),
+          ({ message }) => {
+            messageHandler({
+              roomId: message.params.get("roomId"),
+              userId: message.body.get("userId"),
+            });
+          },
+        ),
+      },
+      messagesItCanSend: {},
+    }, {});
+
+    handler.handleRequest({
+      type: "join",
+      path: "/rooms/123",
+      body: { userId: "u_1" },
+      params: { roomId: "123" },
+      ws: { send: vi.fn() } as any,
+    });
+
+    expect(messageHandler).toHaveBeenCalledWith({
+      roomId: "123",
+      userId: "u_1",
+    });
+  });
+
+  it("sends contract messages from the websocket context", () => {
+    const send = vi.fn();
+    const handler = new WebsocketRouteHandler({
+      messagesItCanRecieve: {
+        join: new Message(
+          z.object({ userId: z.string() }),
+          ({ message, ws }) => {
+            ws.message("joined", {
+              roomId: message.params.get("roomId"),
+              userId: message.body.get("userId"),
+            });
+          },
+        ),
+      },
+      messagesItCanSend: {
+        joined: new Message(
+          z.object({ roomId: z.string(), userId: z.string() }),
+          () => {},
+        ),
+      },
+    }, { subRoute: "/rooms/:roomId" });
+
+    handler.handleRequest({
+      type: "join",
+      path: "/rooms/123",
+      body: { userId: "u_1" },
+      params: { roomId: "123" },
+      ws: { send } as any,
+    });
+
+    expect(send).toHaveBeenCalledWith(JSON.stringify({
+      body: {
+        roomId: "123",
+        userId: "u_1",
+      },
+      path: "/rooms/:roomId",
+      type: "joined",
+    }));
   });
 });

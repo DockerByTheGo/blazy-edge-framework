@@ -14,9 +14,9 @@ import type { ExtractParams } from "src/route/matchers/dsl/types/extractParams";
 
 import { FailedValidationResponse, HtmlFileResponse, HtmlResponse, JsonResponse } from "src/response";
 import { HttpVerbHandler } from "src/route/handlers";
-import { createHttpVerbHandlerCtx, getHttpValidationTarget } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
 import { FileRouteHandler } from "src/route/handlers/variations/file/File";
 import { normalizeFileRoute } from "src/route/handlers/variations/file/utils";
+import { createHttpVerbHandlerCtx, getHttpValidationTarget, TypedRecord } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
 import { WebsocketRouteHandler } from "src/route/handlers/variations/websocket";
 import { DSLRouting } from "src/route/matchers/dsl/main";
 import { NormalRouting } from "src/route/matchers/normal";
@@ -449,7 +449,7 @@ export class Blazy<
           ...ctx,
           request: {
             ...ctx.request,
-            body: res.data,
+            body: new TypedRecord(res.data),
           },
         } as HandlerArg) as ReturnType<Thandler>;
       }
@@ -541,24 +541,17 @@ export class Blazy<
 
   get<
     TPath extends string,
-    TArgs extends z.ZodObject | undefined = undefined,
     THandler extends Handler<
       HttpVerbHandlerCtx<
-        TDCtx,
-        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+        {},
+        {},
         ExtractParams<TPath>
       >
-    > = Handler<
-      HttpVerbHandlerCtx<
-        TDCtx,
-        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
-        ExtractParams<TPath>
-      >
-    >,
+    > 
+    ,
   >(config: {
     path: TPath;
     handler: THandler;
-    args?: TArgs;
     cache?: any;
   },
   ): Blazy<

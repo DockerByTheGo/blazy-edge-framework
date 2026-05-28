@@ -80,5 +80,27 @@ describe("client", () => {
     finally {
       server.stop?.();
     }
-  })
+  });
+
+  it("sends only the provided body for HTTP verb clients", async () => {
+    const app = BlazyConstructor
+      .createProd()
+      .post({
+        path: "/products",
+        handler: ctx => ({ body: { created: ctx.request.body.get("name") } }),
+        args: z.object({ name: z.string() }),
+      });
+
+    const server = listenWithPortFallback(port => app.listen(port), [3015, 3016, 3017]);
+    const client = app.createClient().createClient()(`http://localhost:${server.port}`);
+
+    try {
+      const result = await client.invoke.products["/"].POST({ name: "Ada" });
+      expect(result.raw.body.get("created")).toBe("Ada");
+      expect(result.raw.body.raw()).toEqual({ created: "Ada" });
+    }
+    finally {
+      server.stop?.();
+    }
+  });
 });
