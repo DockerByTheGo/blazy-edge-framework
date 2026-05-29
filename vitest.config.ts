@@ -6,13 +6,13 @@ const currentDir = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   resolve: {
-    alias: {
-      src: resolve(currentDir, "src"),
-      "@test": resolve(currentDir, "tests"),
-      "@better-standard-internal": resolve(currentDir, "../../../../../utils/better-standard-lib/src"),
-      "../../../../../blazy-edge/main-app/src": resolve(currentDir, "src"),
-      bun: resolve(currentDir, "tests/mocks/bun.ts"),
-    },
+    alias: [
+      { find: "src", replacement: resolve(currentDir, "src") },
+      { find: "@test", replacement: resolve(currentDir, "tests") },
+      { find: "@better-standard-internal", replacement: resolve(currentDir, "../../../../../utils/better-standard-lib/src") },
+      { find: "../../../../../blazy-edge/main-app/src", replacement: resolve(currentDir, "src") },
+      { find: "bun", replacement: resolve(currentDir, "tests/mocks/bun.ts") },
+    ],
   },
   test: {
     include: ["tests/**/*.test.ts"],

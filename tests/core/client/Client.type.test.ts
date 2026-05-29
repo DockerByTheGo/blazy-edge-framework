@@ -1,8 +1,6 @@
 import type { IMapable } from "@blazyts/better-standard-library";
-
 import { describe, expectTypeOf, it } from "vitest";
 import z from "zod/v4";
-
 import { BlazyConstructor } from "src/app/constructors";
 import { Client } from "src/client/Client";
 import { TypedRecord } from "src/route/handlers";

@@ -1,7 +1,7 @@
 import type { KeyOfOnlyStringKeys, URecord } from "@blazyts/better-standard-library";
 import type z from "zod/v4";
 
-import type { TypedRecord } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
+import type { NarrowTypedRecord } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
 
 export type WebSocketMessage = {
   type: string;
@@ -31,7 +31,7 @@ export type WebSocketContext = {
   sendTo: (connectionId: string, message: WebSocketResponse) => void;
 };
 
-type MessageContract = Record<string, Message<URecord, z.ZodObject>>;
+type MessageContract = Record<string, Message<any, z.ZodObject, any>>;
 
 export type WebSocketMessenger<TMessages extends MessageContract = MessageContract> = WebSocket & {
   message: <TType extends KeyOfOnlyStringKeys<TMessages>>(
@@ -42,18 +42,18 @@ export type WebSocketMessenger<TMessages extends MessageContract = MessageContra
 
 export type WebSocketHandlerCtx<
   TBody,
-  TParams extends URecord,
+  TParams extends object,
   TMessagesItCanSend extends MessageContract = MessageContract,
 > = {
   message: {
-    body: TypedRecord<TBody & URecord>;
-    params: TypedRecord<TParams>;
+    body: NarrowTypedRecord<TBody & object>;
+    params: NarrowTypedRecord<TParams>;
   };
   ws: WebSocketMessenger<TMessagesItCanSend>;
 };
 
 export class Message<
-  TParams extends URecord,
+  TParams extends object,
   TSchema extends z.ZodObject,
   TMessagesItCanSend extends MessageContract = MessageContract,
 > {
@@ -63,7 +63,7 @@ export class Message<
   ) { }
 }
 
-export type Schema<TCtx extends { params: URecord } = { params: URecord }> = {
+export type Schema<TCtx extends { params: object } = { params: any }> = {
   messagesItCanSend: Record<string, Message<TCtx["params"], z.ZodObject>>;
   messagesItCanRecieve: Record<string, Message<TCtx["params"], z.ZodObject>>;
 };

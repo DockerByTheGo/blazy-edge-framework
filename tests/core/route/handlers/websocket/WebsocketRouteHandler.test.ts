@@ -1,89 +1,41 @@
-import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import z from "zod/v4";
 
-import { BlazyConstructor } from "src/app/constructors";
-import { treeRouteFinder } from "src/route/finders/tree";
 import { WebsocketRouteHandler } from "src/route/handlers/variations/websocket";
+import type { Schema } from "src/route/handlers/variations/websocket/types";
 import { Message } from "src/route/handlers/variations/websocket/types";
 
 describe("WebsocketRouteHandler", () => {
-  const newMEssageSchema = z.object({ name: z.string(), password: z.string() });
-  const joinedSchema = z.object({ name: z.string() });
-  const handler = new WebsocketRouteHandler({
-    messagesItCanRecieve: {
-      new: new Message(
-        newMEssageSchema,
-        v => ({ new: "" }),
-      ),
-    },
-    messagesItCanSend: {
-      joined: new Message(
-        joinedSchema,
-        v => v.message.body,
-      ),
-    },
-  }, {});
+  it("getClientRepresentation exposes send and handle client proxies", () => {
+    const incomingSchema = z.object({ name: z.string(), password: z.string() });
+    const outgoingSchema = z.object({ name: z.string() });
+    const handler = new WebsocketRouteHandler({
+      messagesItCanRecieve: {
+        new: new Message(incomingSchema, () => {}),
+      },
+      messagesItCanSend: {
+        joined: new Message(outgoingSchema, () => {}),
+      },
+    }, { subRoute: "/chat" });
 
-  const client = handler.getClientRepresentation({ serverUrl: "http://localhost:3000" });
-
-  it("exposes getClientRepresentation and send/handle proxies", async () => {
-    const expectedHndle = {
-      joined: (arg) => { },
-    };
-
-    const expectedSend = {
-      new: (arg) => { },
-    };
+    const client = handler.getClientRepresentation({ serverUrl: "http://localhost:3000", subRoute: "/chat" });
 
     expect(client.handle.joined).toBeFunction();
     expect(client.send.new).toBeFunction();
+    expectTypeOf(client.send.new).parameters.toEqualTypeOf<[{ name: string; password: string }]>();
+    type JoinedCtx = Parameters<Parameters<typeof client.handle.joined>[0]>[0];
+    expectTypeOf<JoinedCtx["message"]["body"]["get"]>().parameters.toEqualTypeOf<["name"]>();
+    expectTypeOf<ReturnType<JoinedCtx["message"]["body"]["get"]>>().toEqualTypeOf<string>();
   });
 
-  it("exposes a correctly typed cleint", () => {
-    type expectedType = {
-      handle: {
-        joined: Message<typeof joinedSchema>;
-      };
-      send: {
-        new: Message<typeof newMEssageSchema>;
-      };
-    };
-    expectTypeOf(client).toMatchObjectType<expectedType>();
-  });
-  it("registers a ws handler when using Blazy.ws", () => {
-    const pingSchema = z.object({ text: z.string() });
-    const app = BlazyConstructor
-      .createEmpty()
-      .ws({
-        path: "/chat",
-        messages: {
-          messagesItCanRecieve: {
-            ping: new Message(pingSchema, () => ({ pinged: true })),
-          },
-          messagesItCanSend: {
-            pong: new Message(pingSchema, ({ message }) => message.body.raw()),
-          },
-        },
-      });
-
-    const handler = treeRouteFinder(app.routes, new Path("/chat"))
-      .expect("Expected ws handler to be registered under /chat")
-      .valueOf() as any;
-
-    expect(handler.ws).toBeDefined();
-    expect(handler.ws.handleRequest).toBeFunction();
-    expect(handler.ws.getClientRepresentation).toBeFunction();
-  });
-
-  it("sends a failed validation message back to the websocket host", () => {
+  it("handleRequest sends a failed validation message back to the websocket host", () => {
     const send = vi.fn();
     const handler = new WebsocketRouteHandler({
       messagesItCanRecieve: {
         ping: new Message(z.object({ id: z.string() }), () => {}),
       },
       messagesItCanSend: {},
-    }, {});
+    }, { subRoute: "/chat" });
 
     const response = handler.handleRequest({
       type: "ping",
@@ -94,7 +46,7 @@ describe("WebsocketRouteHandler", () => {
 
     expect(response.type).toBe("validation_failed");
     expect(send).toHaveBeenCalledOnce();
-    expect(JSON.parse(send.mock.calls[0][0])).toMatchObject({
+    expect(JSON.parse(send.mock.calls[0]?.[0] as string)).toMatchObject({
       type: "validation_failed",
       body: {
         fieldErrors: {
@@ -104,13 +56,16 @@ describe("WebsocketRouteHandler", () => {
     });
   });
 
-  it("wraps websocket message bodies and params with the typed record helper", () => {
+  it("handleRequest invokes message handlers with body and params", () => {
     const messageHandler = vi.fn();
-    const handler = new WebsocketRouteHandler({
+    const joinSchema = z.object({ userId: z.string() });
+    const schema = {
       messagesItCanRecieve: {
-        join: new Message(
-          z.object({ userId: z.string() }),
+        join: new Message<{ roomId: string }, typeof joinSchema>(
+          joinSchema,
           ({ message }) => {
+            expectTypeOf(message.body.get("userId")).toEqualTypeOf<string>();
+            expectTypeOf(message.params.get("roomId")).toEqualTypeOf<string>();
             messageHandler({
               roomId: message.params.get("roomId"),
               userId: message.body.get("userId"),
@@ -119,7 +74,8 @@ describe("WebsocketRouteHandler", () => {
         ),
       },
       messagesItCanSend: {},
-    }, {});
+    } satisfies Schema<{ params: { roomId: string } }>;
+    const handler = new WebsocketRouteHandler(schema, { subRoute: "/rooms/:roomId" });
 
     handler.handleRequest({
       type: "join",
@@ -135,7 +91,7 @@ describe("WebsocketRouteHandler", () => {
     });
   });
 
-  it("sends contract messages from the websocket context", () => {
+  it("handleRequest sends contract messages from the websocket context", () => {
     const send = vi.fn();
     const handler = new WebsocketRouteHandler({
       messagesItCanRecieve: {

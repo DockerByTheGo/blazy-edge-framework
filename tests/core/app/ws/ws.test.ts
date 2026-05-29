@@ -1,9 +1,7 @@
-import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import z from "zod/v4";
 
 import { BlazyConstructor } from "src/app/constructors";
-import { treeRouteFinder } from "src/route/finders";
 import { Message } from "src/route/handlers/variations/websocket/types";
 
 import { getProtocols } from "../utils/routeTree";
@@ -54,9 +52,7 @@ describe("ws()", () => {
       },
     });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/rooms/123"))
-      .expect("Expected dynamic ws route to be found")
-      .valueOf() as any;
+    const protocols = getProtocols(app.routes, "/rooms/:roomId");
 
     expect(protocols.ws).toBeDefined();
     expect(protocols.ws.metadata.subRoute).toBe("/rooms/:roomId");

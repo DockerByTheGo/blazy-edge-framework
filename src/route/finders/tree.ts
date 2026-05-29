@@ -2,7 +2,7 @@ import type { IRouteHandler, Request } from "@blazyts/backend-lib/src/core/serve
 import type { RouteFinder } from "@blazyts/backend-lib/src/core/server/router/Router";
 import type { RouteTree } from "@blazyts/backend-lib/src/core/server/router/types";
 
-import { Optionable } from "@blazyts/better-standard-library";
+import { Optionable } from "@blazyts/better-standard-library/src/data_structures/functional-patterns/option/main";
 
 /**
  * Checks if a route segment is dynamic (starts with ':')

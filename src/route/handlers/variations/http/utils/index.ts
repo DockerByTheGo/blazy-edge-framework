@@ -64,12 +64,12 @@ export function createRestResponse(body: unknown, init?: ResponseInit): Response
   return JsonResponse(body, init);
 }
 
-export function createHttpVerbHandlerCtx<TBody = unknown, TParams extends URecord = URecord>(
+export function createHttpVerbHandlerCtx<TBody = unknown, TParams extends object = URecord>(
   rawCtx: unknown,
 ): HttpVerbHandlerCtx<URecord, TBody, TParams> {
   const raw = (rawCtx ?? {}) as URecord;
   const reqData = (raw.reqData ?? {}) as RawRequestData<TBody>;
-  const params = (raw.params ?? {}) as TParams;
+  const params = (raw.params ?? {}) as TypedRecordShape<TParams>;
   const body = (reqData?.body ?? raw.body ?? rawCtx ?? {}) as TypedRecordShape<TBody>;
   const method = String(reqData?.verb ?? reqData?.protocol ?? raw.protocol ?? raw.verb ?? "GET");
   const url = String(reqData?.url ?? raw.url ?? "");

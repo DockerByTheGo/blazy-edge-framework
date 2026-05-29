@@ -380,8 +380,7 @@ export class Blazy<
 
   http<
     TPath extends string,
-    Thandler extends (arg: Args extends null ? URecord : Args,
-    ) => unknown,
+    Thandler extends (arg: any) => unknown,
     TProtocol extends HandlerProtocol,
     Args extends z.ZodObject | null = null,
   >(v: {
@@ -472,19 +471,16 @@ export class Blazy<
   post<
     TPath extends string,
     TArgs extends z.ZodObject | undefined = undefined,
-    THandler extends Handler<
-      HttpVerbHandlerCtx<
-        TDCtx,
-        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
-        ExtractParams<TPath>
-      >
-    > = Handler<
-      HttpVerbHandlerCtx<
-        TDCtx,
-        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
-        ExtractParams<TPath>
-      >
+    TContext extends HttpVerbHandlerCtx<
+      TDCtx,
+      TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+      ExtractParams<TPath>
+    > = HttpVerbHandlerCtx<
+      TDCtx,
+      TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+      ExtractParams<TPath>
     >,
+    THandler extends (ctx: TContext) => any = (ctx: TContext) => any,
   >(config: {
     path: TPath;
     handler: THandler;
@@ -496,7 +492,7 @@ export class Blazy<
     & PathStringToObject<
       TPath,
       HttpVerbHandler<
-        Parameters<THandler>[0],
+        TContext,
         ReturnType<THandler>
       >,
       "POST"
@@ -504,7 +500,7 @@ export class Blazy<
     THooks
   > {
     // (this.services.services.cache as CacheService).registerHandler(`POST:${config.path}`, new NormalRouteHandler(config.handeler, { subRoute: config.path, verb: "POST", protocol: "POST" }))
-    return this.http<TPath, THandler, any, "POST">({
+    return this.http<TPath, THandler, "POST", TArgs extends undefined ? null : NonNullable<TArgs>>({
       path: config.path,
       handler: v => config.handler(v),
       args: config.args,
@@ -541,14 +537,16 @@ export class Blazy<
 
   get<
     TPath extends string,
-    THandler extends Handler<
-      HttpVerbHandlerCtx<
-        {},
-        {},
-        ExtractParams<TPath>
-      >
-    > 
-    ,
+    TContext extends HttpVerbHandlerCtx<
+      {},
+      {},
+      ExtractParams<TPath>
+    > = HttpVerbHandlerCtx<
+      {},
+      {},
+      ExtractParams<TPath>
+    >,
+    THandler extends (ctx: TContext) => any = (ctx: TContext) => any,
   >(config: {
     path: TPath;
     handler: THandler;
@@ -559,18 +557,17 @@ export class Blazy<
     & PathStringToObject<
       TPath,
       HttpVerbHandler<
-        Parameters<THandler>[0],
+        TContext,
         ReturnType<THandler>
       >,
       "GET"
     >,
     THooks
   > {
-    return this.http<TPath, THandler, any, "GET">({
+    return this.http<TPath, THandler, "GET">({
       path: config.path,
       // handler: v => v.path === "GET" ? config.handler(v) : this.notFound(),
       handler: config.handler,
-      args: config.args,
       meta: { verb: "GET", protocol: "GET" as const },
       cache: config.cache,
     });

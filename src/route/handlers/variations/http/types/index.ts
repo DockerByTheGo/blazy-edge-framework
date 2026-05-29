@@ -7,11 +7,22 @@ type ResponseBody = ConstructorParameters<typeof Response>[0];
 
 export type QueryValue = string | string[];
 export type QueryParams = Record<string, QueryValue>;
-export type TypedRecordShape<T> = T extends URecord ? T : URecord;
+export type TypedRecordShape<T> = T extends URecord
+  ? T
+  : T extends object
+    ? { [K in keyof T]: T[K] }
+    : URecord;
+
+export type NarrowTypedRecord<T extends object> = Omit<TypedRecord<URecord>, "get" | "has" | "raw" | "toJSON"> & {
+  get: <K extends Extract<keyof T, string>>(v: K) => T[K];
+  has: <K extends Extract<keyof T, string>>(v: K) => boolean;
+  raw: () => T;
+  toJSON: () => T;
+};
 
 export type RestRequestCtx<
   TBody = URecord,
-  TParams extends URecord = URecord,
+  TParams extends object = URecord,
   TQuery extends QueryParams = QueryParams,
 > = {
   url: string;
@@ -19,8 +30,8 @@ export type RestRequestCtx<
   method: string;
   verb: string;
   headers: TypedRecord<Record<string, string>>;
-  body: TypedRecord<TypedRecordShape<TBody>>;
-  params: TypedRecord<TParams>;
+  body: NarrowTypedRecord<TypedRecordShape<TBody>>;
+  params: NarrowTypedRecord<TypedRecordShape<TParams>>;
   query: TQuery;
   whatwg: () => Request;
 };
@@ -35,7 +46,7 @@ export type RestResponseCtx = {
 export type HttpVerbHandlerCtx<
   TAppCtx extends URecord = URecord,
   TBody = unknown,
-  TParams extends URecord = URecord,
+  TParams extends object = URecord,
   TQuery extends QueryParams = QueryParams,
 > = {
   app?: TAppCtx;
@@ -55,15 +66,21 @@ export type HttpVerbClientMetadata = IRouteHandlerMetadata & Partial<{
   verb: string;
 }>;
 
-export type ClientBody<TCtx> = TCtx extends HttpVerbHandlerCtx<any, infer TBody, any, any> ? TBody : TCtx;
+export type ClientBody<TCtx> = TCtx extends { request: RestRequestCtx<infer TBody, any, any> } ? TBody : TCtx;
 export type ClientBodyArgs<TCtx> = {} extends ClientBody<TCtx>
   ? [v?: ClientBody<TCtx>]
   : [v: ClientBody<TCtx>];
 
 export type TypedResponseBody<TReturn> = Awaited<TReturn> extends { body: infer TBody }
-  ? Omit<Awaited<TReturn>, "body"> & { body: TypedRecord<TypedRecordShape<TBody>> }
+  ? Omit<Awaited<TReturn>, "body"> & { body: NarrowTypedRecord<TypedRecordShape<TBody>> }
   : Awaited<TReturn>;
+
+export type HttpVerbClientFunction<TCtx, TReturn> = ((...v: ClientBodyArgs<TCtx>) => Promise<TypedResponseBody<TReturn>>) & {
+  method?: string;
+  path: string;
+  metadata: HttpVerbClientMetadata;
+};
 
 export type NormalRouteHandlerClientRepresentation<TCtx, TReturn> = (
   meta: IRouteHandlerMetadata
-) => (...v: ClientBodyArgs<TCtx>) => Promise<TypedResponseBody<TReturn>>;
+) => HttpVerbClientFunction<TCtx, TReturn>;

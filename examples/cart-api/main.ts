@@ -42,7 +42,7 @@ const server = BlazyConstructor
     .rpc({
         name: "getCart",
         handler: ctx => {
-            console.log(ctx.request.body.raw())
+            console.log(ctx.request.body.get("id"))
 
             return { body: cartService.getAll() };
         },
@@ -55,7 +55,7 @@ server.listen(3005)
 const client =     server.createClient().createClient()("")
 
 client.invoke.ws[":id"]["/"].ws.handle["new-message"](v => {
-    
+
 })
 
 client.invoke.rpc.getCart["/"].POST().then(v => v.map(v => {
