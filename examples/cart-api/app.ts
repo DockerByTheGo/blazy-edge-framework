@@ -12,12 +12,13 @@ export const app = BlazyConstructor
     .addService("cartService", cartService)
     .get(
         {
-            path: "/:hi/:koko",
+            path: "/:hi/:koko/lolo/:po",
             handler: v => {
                 console.log(v.request)
                 return { 
                     hi: v.request.params.get("hi"),
-                    ko: v.request.params.get("koko") 
+                    ko: v.request.params.get("koko"),
+                    po: v.request.params.get("po")
                 }
             },
         }

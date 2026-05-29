@@ -17,6 +17,6 @@ res.map(v => console.log("rpc", v))
 console.log("----")
 
 console.log("http")
-const res2 = await client.invoke("hello")("d")["/"].GET()
+const res2 = await client.invoke("hello")("d").lolo("mki")["/"].GET()
 console.log(res2.raw)
 
