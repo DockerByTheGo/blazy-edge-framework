@@ -140,7 +140,10 @@ describe("WebsocketRouteHandler", () => {
         roomId: "123",
         userId: "u_1",
       },
-      path: "/rooms/:roomId",
+      params: {
+        roomId: "123",
+      },
+      path: "/rooms/123",
       type: "joined",
     }));
   });

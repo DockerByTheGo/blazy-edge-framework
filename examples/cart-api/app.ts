@@ -15,7 +15,7 @@ export const app = BlazyConstructor
             path: "/:hi",
             handler: v => {
                 console.log(v.request)
-                return{ ji: v.request.params.get() }},
+                return{ ji: v.request.params.get("hi") }},
         }
     )
     .ws({

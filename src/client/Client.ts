@@ -32,8 +32,7 @@ export type Routes<R> = {
     : Routes<R[Route]>;
 };
 
-export type ClientObject<T> = {
-  [CurrentRoute in KeyOfOnlyStringKeys<T>]:
+type ClientRouteValue<T, CurrentRoute extends KeyOfOnlyStringKeys<T>> =
   // If this is the "/" key, it contains protocol handlers
   CurrentRoute extends "/"
     ? {
@@ -43,8 +42,18 @@ export type ClientObject<T> = {
   // Otherwise, recurse into nested routes
     : T[CurrentRoute] extends { getClientRepresentation: (...args: any[]) => unknown }
       ? ClientRepresentation<T[CurrentRoute]>
-      : ClientObject<T[CurrentRoute]>
-};
+      : ClientObject<T[CurrentRoute]>;
+
+type StaticRouteKeys<T> = Exclude<KeyOfOnlyStringKeys<T>, `:${string}`>;
+type DynamicRouteKeys<T> = Extract<KeyOfOnlyStringKeys<T>, `:${string}`>;
+type DynamicRouteAccess<T> = [DynamicRouteKeys<T>] extends [never]
+  ? {}
+  : <TParam extends string>(param: TParam) => ClientObject<T[DynamicRouteKeys<T>]>;
+
+export type ClientObject<T> = {
+  [CurrentRoute in StaticRouteKeys<T>]:
+  ClientRouteValue<T, CurrentRoute>
+} & DynamicRouteAccess<T>;
 
 function emptyClientHooks(): ClientHooks {
   return {
@@ -74,6 +83,7 @@ export class Client<TRouteTree extends RouteTree> {
   ) {
     const build = (tree: any, path: string = "") => {
       const out: any = {};
+      let dynamicNode: any;
       for (const key of Object.keys(tree ?? {})) {
         const node = tree[key];
 
@@ -84,9 +94,10 @@ export class Client<TRouteTree extends RouteTree> {
           for (const protocol of Object.keys(node)) {
             const handler = node[protocol] as RuntimeRouteHandler;
             if (handler && typeof handler.getClientRepresentation === "function") {
+              const routePath = path || handler.metadata.subRoute;
               const representation = handler.getClientRepresentation({
-                serverUrl: this.url + handler.metadata.subRoute,
-                path,
+                serverUrl: this.url + routePath,
+                path: routePath,
                 ...handler.metadata,
               } as any);
               protocolHandlers[protocol] = this.wrapClientRepresentation(representation);
@@ -94,12 +105,40 @@ export class Client<TRouteTree extends RouteTree> {
           }
           out[key] = protocolHandlers;
         }
+        else if (key.startsWith(":")) {
+          dynamicNode = node;
+        }
         else {
           // This is a path segment, recurse
           const currentPath = path ? `${path}/${key}` : `/${key}`;
           out[key] = build(node ?? {}, currentPath);
         }
       }
+
+      if (dynamicNode) {
+        const dynamicAccessor = ((property: string) => {
+          const currentPath = path ? `${path}/${encodeURIComponent(property)}` : `/${encodeURIComponent(property)}`;
+          return build(dynamicNode, currentPath);
+        }) as any;
+
+        Object.assign(dynamicAccessor, out);
+
+        return new Proxy(dynamicAccessor, {
+          apply: (_target, _thisArg, args) => dynamicAccessor(String(args[0])),
+          get: (target, property, receiver) => {
+            if (typeof property !== "string") {
+              return Reflect.get(target, property, receiver);
+            }
+
+            if (Object.hasOwn(out, property)) {
+              return out[property];
+            }
+
+            return Reflect.get(target, property, receiver);
+          },
+        });
+      }
+
       return out;
     };
 

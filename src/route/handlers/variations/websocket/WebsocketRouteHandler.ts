@@ -21,7 +21,11 @@ export class WebsocketRouteHandler<
   ) {
   }
 
-  private createWebSocketMessenger(ws: WebSocket | undefined): WebSocketMessenger<TMessagesSchema["messagesItCanSend"]> {
+  private createWebSocketMessenger(
+    ws: WebSocket | undefined,
+    path = this.metadata.subRoute,
+    params?: WebSocketMessage["params"],
+  ): WebSocketMessenger<TMessagesSchema["messagesItCanSend"]> {
     const socket = (ws ?? { send: () => {} }) as WebSocketMessenger<TMessagesSchema["messagesItCanSend"]>;
 
     socket.message = (type, body) => {
@@ -30,7 +34,8 @@ export class WebsocketRouteHandler<
 
       socket.send(JSON.stringify({
         body: parsed,
-        path: this.metadata.subRoute,
+        params,
+        path,
         type,
       }));
     };
@@ -48,7 +53,7 @@ export class WebsocketRouteHandler<
             body: new TypedRecord(parsed.data),
             params: new TypedRecord((message.params ?? {}) as any),
           },
-          ws: this.createWebSocketMessenger(message.ws),
+          ws: this.createWebSocketMessenger(message.ws, message.path, message.params),
         });
       }
       else {
@@ -70,6 +75,7 @@ export class WebsocketRouteHandler<
 
   getClientRepresentation = (metadata: IRouteHandlerMetadata): WeboscketRouteCleintRepresentation<TMessagesSchema> => {
     const wsUrl = metadata.serverUrl.replace(/^http/, "ws");
+    const routePath = metadata.path ?? this.metadata.subRoute;
     const getWs = () => getWebsocketConnection(wsUrl);
 
     const send = {};
@@ -79,7 +85,7 @@ export class WebsocketRouteHandler<
         send[messageName] = async (data) => {
           const ws = getWs();
           const res = message.schema.parse(data);
-          const dataToSend: WebSocketMessage & {} = { body: res, path: this.metadata.subRoute, type: messageName };
+          const dataToSend: WebSocketMessage & {} = { body: res, path: routePath, type: messageName };
           const ddd = JSON.stringify(dataToSend);
 
           // Wait for WebSocket to be open

@@ -61,6 +61,36 @@ describe("client", () => {
     expect(client.invoke.a.b.c["/"].POST).toBeDefined();
   });
 
+  it("uses string values for dynamic route segments", async () => {
+    const handler = makeMockHandler<{ qty: number }, { id: string }>("/users/:id/orders", { id: "order-1" });
+    const tree = { users: { ":id": { orders: protocolLeaf("POST", handler) } } };
+
+    const client = new Client(tree, "http://localhost:3000");
+    const result = await client.invoke.users("u_123").orders["/"].POST({ qty: 2 });
+
+    expect(client.invoke.users("u_123").orders["/"].POST.metadata.serverUrl).toBe("http://localhost:3000/users/u_123/orders");
+    expect(result.raw).toEqual({ id: "order-1" });
+  });
+
+  it("keeps static routes beside dynamic route segments", async () => {
+    const dynamicHandler = makeMockHandler<{ qty: number }, { id: string }>("/users/:id/orders", { id: "order-1" });
+    const staticHandler = makeMockHandler<void, { id: "me" }>("/users/me", { id: "me" });
+    const tree = {
+      users: {
+        me: protocolLeaf("GET", staticHandler),
+        ":id": { orders: protocolLeaf("POST", dynamicHandler) },
+      },
+    };
+
+    const client = new Client(tree, "http://localhost:3000");
+
+    await client.invoke.users("u_123").orders["/"].POST({ qty: 2 });
+    await client.invoke.users.me["/"].GET(undefined);
+
+    expect(client.invoke.users("u_123").orders["/"].POST.metadata.serverUrl).toBe("http://localhost:3000/users/u_123/orders");
+    expect(client.invoke.users.me["/"].GET.metadata.serverUrl).toBe("http://localhost:3000/users/me");
+  });
+
   it("correctly sends a request", async () => {
     const app = BlazyConstructor
       .createProd()

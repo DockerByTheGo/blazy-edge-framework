@@ -62,6 +62,48 @@ describe("client types", () => {
     expectTypeOf(client.invoke.a.b.c["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ y: number }>>>();
   });
 
+  it("dynamic route segments are addressed by string values", () => {
+    const handler = makeMockHandler<{ qty: number }, { id: string }>("/users/:id/orders", { id: "order-1" });
+    const tree = { users: { ":id": { orders: protocolLeaf("POST", handler) } } };
+    const client = new Client(tree, "http://localhost:3000");
+
+    expectTypeOf(client.invoke.users).parameters.toEqualTypeOf<[param: string]>();
+    expectTypeOf(client.invoke.users("u_123").orders["/"].POST).parameters.toEqualTypeOf<[{ qty: number }]>();
+    expectTypeOf(client.invoke.users("u_123").orders["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ id: string }>>>();
+  });
+
+  it("preserves static route types beside dynamic route segments", () => {
+    const dynamicHandler = makeMockHandler<{ qty: number }, { id: string }>("/users/:id/orders", { id: "order-1" });
+    const staticHandler = makeMockHandler<undefined, { id: "me" }>("/users/me", { id: "me" });
+    const tree = {
+      users: {
+        me: protocolLeaf("GET", staticHandler),
+        ":id": { orders: protocolLeaf("POST", dynamicHandler) },
+      },
+    };
+    const client = new Client(tree, "http://localhost:3000");
+
+    expectTypeOf(client.invoke.users.me["/"].GET).parameters.toEqualTypeOf<[undefined]>();
+    expectTypeOf(client.invoke.users.me["/"].GET).returns.toEqualTypeOf<Promise<IMapable<{ id: "me" }>>>();
+    expectTypeOf(client.invoke.users("u_123").orders["/"].POST).parameters.toEqualTypeOf<[{ qty: number }]>();
+    expectTypeOf(client.invoke.users("u_123").orders["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ id: string }>>>();
+  });
+
+  it("app clients use string values for dynamic route segments", () => {
+    const app = BlazyConstructor
+      .createEmpty()
+      .get({
+        path: "/users/:id",
+        handler: ctx => ({ body: { id: ctx.request.params.get("id") } }),
+      });
+    const client = app.createClient().createClient()("http://localhost:3000");
+
+    expectTypeOf(client.invoke.users("u_123")["/"].GET).parameters.toEqualTypeOf<[v?: {} | undefined]>();
+    expectTypeOf(client.invoke.users("u_123")["/"].GET).returns.toEqualTypeOf<Promise<IMapable<{
+      body: TypedRecord<{ id: string }>;
+    }>>>();
+  });
+
   it("client.invoke itself is not any", () => {
     const handler = makeMockHandler<{ v: boolean }, { v: boolean }>("/flag", { v: true });
     const tree = { flag: protocolLeaf("POST", handler) };
@@ -157,6 +199,35 @@ describe("client types", () => {
       (ctx: {
         message: {
           body: TypedRecord<{ roomId: string }>;
+        };
+      }) => void,
+    ]>();
+  });
+
+  it("preserves websocket message schema types through dynamic route params", () => {
+    const app = BlazyConstructor.createEmpty().ws({
+      path: "/rooms/:roomId",
+      messages: {
+        messagesItCanRecieve: {
+          join: new Message(z.object({ userId: z.string() }), () => {}),
+        },
+        messagesItCanSend: {
+          joined: new Message(z.object({ userId: z.string() }), () => {}),
+        },
+      },
+    });
+
+    const client = app.createClient().createClient()("http://localhost:3000");
+
+    expectTypeOf(client.invoke.rooms("room-1")["/"].ws.send.join).parameters.toEqualTypeOf<[{
+      userId: string;
+    }]>();
+    expectTypeOf(client.invoke.rooms("room-1")["/"].ws.send.join).returns.toEqualTypeOf<Promise<IMapable<void>>>();
+
+    expectTypeOf(client.invoke.rooms("room-1")["/"].ws.handle.joined).parameters.toMatchTypeOf<[
+      (ctx: {
+        message: {
+          body: TypedRecord<{ userId: string }>;
         };
       }) => void,
     ]>();
