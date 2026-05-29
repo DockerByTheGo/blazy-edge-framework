@@ -100,7 +100,7 @@ describe("client", () => {
         args: z.object({}),
       });
 
-    const server = listenWithPortFallback(port => app.listen(port));
+    const server = app.listen(0);
     const client = app.createClient().createClient()(`http://localhost:${server.port}`);
 
     try {
@@ -128,6 +128,32 @@ describe("client", () => {
       const result = await client.invoke.products["/"].POST({ name: "Ada" });
       expect(result.raw.body.get("created")).toBe("Ada");
       expect(result.raw.body.raw()).toEqual({ created: "Ada" });
+    }
+    finally {
+      server.stop?.();
+    }
+  });
+
+  it("sends concrete values for multiple dynamic HTTP route segments", async () => {
+    const app = BlazyConstructor
+      .createProd()
+      .get({
+        path: "/:hi/:koko",
+        handler: ctx => ({
+          hi: ctx.request.params.get("hi"),
+          ko: ctx.request.params.get("koko"),
+        }),
+      });
+
+    const server = app.listen(0);
+    const client = app.createClient().createClient()(`http://localhost:${server.port}`);
+
+    try {
+      const result = await client.invoke("hello")("d")["/"].GET();
+      expect(result.raw).toEqual({
+        hi: "hello",
+        ko: "d",
+      });
     }
     finally {
       server.stop?.();

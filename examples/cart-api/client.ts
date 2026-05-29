@@ -12,12 +12,11 @@ client.invoke.rpc.getCart["/"].POST()
 
 setTimeout(() => process.exit(0),3000)
 
-console.log("rpc")
 const res = await client.invoke.rpc.getCart["/"].POST({ id: "cart-1" })
-res.map(console.log)
+res.map(v => console.log("rpc", v))
 console.log("----")
 
 console.log("http")
-const res2 = await client.invoke("hello")["/"].GET()
+const res2 = await client.invoke("hello")("d")["/"].GET()
 console.log(res2.raw)
 

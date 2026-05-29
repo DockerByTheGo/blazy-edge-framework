@@ -12,10 +12,14 @@ export const app = BlazyConstructor
     .addService("cartService", cartService)
     .get(
         {
-            path: "/:hi",
+            path: "/:hi/:koko",
             handler: v => {
                 console.log(v.request)
-                return{ ji: v.request.params.get("hi") }},
+                return { 
+                    hi: v.request.params.get("hi"),
+                    ko: v.request.params.get("koko") 
+                }
+            },
         }
     )
     .ws({
@@ -33,7 +37,7 @@ export const app = BlazyConstructor
                 "new-message": new Message(
                     z.object({ content: z.string() }),
                     async ctx => {
-                        await ctx.ws.message("new-message", {content: "jkhfwbhksbjhd"})
+                        await ctx.ws.message("new-message", { content: "jkhfwbhksbjhd" })
                     }
                 )
             },
