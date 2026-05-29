@@ -6,30 +6,43 @@ import { Mapable } from "@blazyts/better-standard-library";
 
 import type { ClientHooks } from "./types/ClientHooks";
 
+type ClientRepresentation<THandler> = THandler extends {
+  getClientRepresentation: (...args: any[]) => infer TRepresentation;
+}
+  ? MappedClientRepresentation<TRepresentation>
+  : never;
+
 type MappedClientRepresentation<TRepresentation>
   = TRepresentation extends (...args: infer TArgs) => infer TReturn
     ? (...args: TArgs) => Promise<IMapable<Awaited<TReturn>>>
+    : TRepresentation extends object
+      ? { [K in keyof TRepresentation]: MappedClientRepresentation<TRepresentation[K]> }
     : TRepresentation;
 
-export type Routes<R extends RouteTree> = {
+type RuntimeRouteHandler = IRouteHandler<any, any> & {
+  metadata: {
+    subRoute: string;
+    [key: string]: unknown;
+  };
+};
+
+export type Routes<R> = {
   send: <Route extends KeyOfOnlyStringKeys<R>>(route: Route) => R[Route] extends IRouteHandler<any, any>
     ? R[Route]["getClientRepresentation"]
     : Routes<R[Route]>;
 };
 
-export type ClientObject<T extends RouteTree> = {
+export type ClientObject<T> = {
   [CurrentRoute in KeyOfOnlyStringKeys<T>]:
   // If this is the "/" key, it contains protocol handlers
   CurrentRoute extends "/"
     ? {
         [Protocol in KeyOfOnlyStringKeys<T[CurrentRoute]>]:
-        T[CurrentRoute][Protocol] extends IRouteHandler<any, any>
-          ? MappedClientRepresentation<ReturnType<T[CurrentRoute][Protocol]["getClientRepresentation"]>>
-          : never
+        ClientRepresentation<T[CurrentRoute][Protocol]>
       }
   // Otherwise, recurse into nested routes
-    : T[CurrentRoute] extends IRouteHandler<any, any>
-      ? MappedClientRepresentation<ReturnType<T[CurrentRoute]["getClientRepresentation"]>>
+    : T[CurrentRoute] extends { getClientRepresentation: (...args: any[]) => unknown }
+      ? ClientRepresentation<T[CurrentRoute]>
       : ClientObject<T[CurrentRoute]>
 };
 
@@ -69,13 +82,13 @@ export class Client<TRouteTree extends RouteTree> {
           // This is a route endpoint with protocol handlers
           const protocolHandlers: any = {};
           for (const protocol of Object.keys(node)) {
-            const handler = node[protocol] as IRouteHandler<any, any>;
+            const handler = node[protocol] as RuntimeRouteHandler;
             if (handler && typeof handler.getClientRepresentation === "function") {
               const representation = handler.getClientRepresentation({
                 serverUrl: this.url + handler.metadata.subRoute,
                 path,
                 ...handler.metadata,
-              });
+              } as any);
               protocolHandlers[protocol] = this.wrapClientRepresentation(representation);
             }
           }
@@ -95,6 +108,15 @@ export class Client<TRouteTree extends RouteTree> {
 
   private wrapClientRepresentation<TRepresentation>(representation: TRepresentation): MappedClientRepresentation<TRepresentation> {
     if (typeof representation !== "function") {
+      if (representation !== null && typeof representation === "object") {
+        return Object.fromEntries(
+          Object.entries(representation).map(([key, value]) => [
+            key,
+            this.wrapClientRepresentation(value),
+          ]),
+        ) as MappedClientRepresentation<TRepresentation>;
+      }
+
       return representation as MappedClientRepresentation<TRepresentation>;
     }
 
@@ -105,7 +127,7 @@ export class Client<TRouteTree extends RouteTree> {
           ? [this.hooks.beforeSend.execute(args[0] as any)]
           : args;
         const response = await clientFn(...nextArgs);
-        const afterReceiveResponse = this.hooks.afterReceive.execute({ response });
+        const afterReceiveResponse = this.hooks.afterReceive.execute({ response } as any) as unknown;
         const value = afterReceiveResponse !== null
           && typeof afterReceiveResponse === "object"
           && Object.hasOwn(afterReceiveResponse, "response")

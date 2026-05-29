@@ -6,6 +6,7 @@ import z from "zod/v4";
 import { BlazyConstructor } from "src/app/constructors";
 import { Client } from "src/client/Client";
 import { TypedRecord } from "src/route/handlers";
+import { Message } from "src/route/handlers/variations/websocket/types";
 
 import { makeMockHandler, makeNonFunctionRepresentationHandler, protocolLeaf } from "./clientTestHelpers";
 
@@ -116,7 +117,7 @@ describe("client types", () => {
     >();
   });
 
-  it("keeps non-function client representations typed as-is", () => {
+  it("maps nested client representation functions while preserving their args and returns", () => {
     const representation = {
       open: (headers: { token: string }) => ({ connected: true as const, headers }),
       close: () => ({ closed: true as const }),
@@ -125,8 +126,41 @@ describe("client types", () => {
     const tree = { stream: protocolLeaf("ws", handler) };
     const client = new Client(tree, "http://localhost:3000");
 
-    expectTypeOf(client.invoke.stream["/"].ws).toEqualTypeOf<typeof representation>();
     expectTypeOf(client.invoke.stream["/"].ws.open).parameters.toEqualTypeOf<[{ token: string }]>();
-    expectTypeOf(client.invoke.stream["/"].ws.close).returns.toEqualTypeOf<{ closed: true }>();
+    expectTypeOf(client.invoke.stream["/"].ws.open).returns.toEqualTypeOf<Promise<IMapable<{
+      connected: true;
+      headers: { token: string };
+    }>>>();
+    expectTypeOf(client.invoke.stream["/"].ws.close).returns.toEqualTypeOf<Promise<IMapable<{ closed: true }>>>();
+  });
+
+  it("preserves websocket message schema types through the app client", () => {
+    const app = BlazyConstructor.createEmpty().ws({
+      path: "/rooms",
+      messages: {
+        messagesItCanRecieve: {
+          join: new Message(z.object({ roomId: z.string(), members: z.number() }), () => {}),
+        },
+        messagesItCanSend: {
+          joined: new Message(z.object({ roomId: z.string() }), () => {}),
+        },
+      },
+    });
+
+    const client = app.createClient().createClient()("http://localhost:3000");
+
+    expectTypeOf(client.invoke.rooms["/"].ws.send.join).parameters.toEqualTypeOf<[{
+      roomId: string;
+      members: number;
+    }]>();
+    expectTypeOf(client.invoke.rooms["/"].ws.send.join).returns.toEqualTypeOf<Promise<IMapable<void>>>();
+
+    expectTypeOf(client.invoke.rooms["/"].ws.handle.joined).parameters.toMatchTypeOf<[
+      (ctx: {
+        message: {
+          body: TypedRecord<{ roomId: string }>;
+        };
+      }) => void,
+    ]>();
   });
 });
