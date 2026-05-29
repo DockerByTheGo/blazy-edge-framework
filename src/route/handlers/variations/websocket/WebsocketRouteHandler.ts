@@ -70,14 +70,14 @@ export class WebsocketRouteHandler<
 
   getClientRepresentation = (metadata: IRouteHandlerMetadata): WeboscketRouteCleintRepresentation<TMessagesSchema> => {
     const wsUrl = metadata.serverUrl.replace(/^http/, "ws");
-
-    const ws = getWebsocketConnection(wsUrl);
+    const getWs = () => getWebsocketConnection(wsUrl);
 
     const send = {};
     Object
       .entries(this.schema.messagesItCanRecieve)
       .forEach(([messageName, message], i) => {
         send[messageName] = async (data) => {
+          const ws = getWs();
           const res = message.schema.parse(data);
           const dataToSend: WebSocketMessage & {} = { body: res, path: this.metadata.subRoute, type: messageName };
           const ddd = JSON.stringify(dataToSend);
@@ -105,7 +105,27 @@ export class WebsocketRouteHandler<
       .forEach(
         ([messageName, message], i) => {
           handle[messageName] = (callback: (data) => void) => {
-            getWebsocketConnection;
+            const ws = getWs();
+
+            ws.addEventListener("message", (event) => {
+              const rawMessage = typeof event.data === "string"
+                ? JSON.parse(event.data) as WebSocketMessage
+                : event.data as WebSocketMessage;
+
+              if (rawMessage.type !== messageName) {
+                return;
+              }
+
+              const parsed = message.schema.parse(rawMessage.body);
+
+              callback({
+                message: {
+                  body: new TypedRecord(parsed),
+                  params: new TypedRecord((rawMessage.params ?? {}) as any),
+                },
+                ws,
+              });
+            });
           };
         },
       );

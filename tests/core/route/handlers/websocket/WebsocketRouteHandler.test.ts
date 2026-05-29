@@ -28,6 +28,20 @@ describe("WebsocketRouteHandler", () => {
     expectTypeOf<ReturnType<JoinedCtx["message"]["body"]["get"]>>().toEqualTypeOf<string>();
   });
 
+  it("getClientRepresentation does not open a websocket while building the client surface", () => {
+    const handler = new WebsocketRouteHandler({
+      messagesItCanRecieve: {
+        ping: new Message(z.object({ id: z.string() }), () => {}),
+      },
+      messagesItCanSend: {},
+    }, { subRoute: "/ws/:id" });
+
+    expect(() => handler.getClientRepresentation({
+      serverUrl: "/ws/:id",
+      subRoute: "/ws/:id",
+    })).not.toThrow();
+  });
+
   it("handleRequest sends a failed validation message back to the websocket host", () => {
     const send = vi.fn();
     const handler = new WebsocketRouteHandler({
