@@ -4,6 +4,7 @@ import z from "zod/v4";
 import { BlazyConstructor } from "src/app/constructors";
 import { Client } from "src/client/Client";
 import { TypedRecord } from "src/route/handlers";
+import type { IWHATWG, NarrowTypedRecord } from "src/route/handlers/variations/http/types";
 import { Message } from "src/route/handlers/variations/websocket/types";
 
 import { makeMockHandler, makeNonFunctionRepresentationHandler, protocolLeaf } from "./clientTestHelpers";
@@ -100,8 +101,8 @@ describe("client types", () => {
 
     expectTypeOf(client.invoke.users("u_123")["/"].GET).parameters.toEqualTypeOf<[v?: {} | undefined]>();
     expectTypeOf(client.invoke.users("u_123")["/"].GET).returns.toEqualTypeOf<Promise<IMapable<{
-      body: TypedRecord<{ id: string }>;
-    }>>>();
+      body: NarrowTypedRecord<{ id: string }>;
+    } & IWHATWG<Response>>>>();
   });
 
   it("client.invoke itself is not any", () => {
@@ -138,8 +139,8 @@ describe("client types", () => {
 
     expectTypeOf(client.invoke.products["/"].POST).parameters.toEqualTypeOf<[{ name: string }]>();
     expectTypeOf(client.invoke.products["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{
-      body: TypedRecord<{ created: string }>;
-    }>>>();
+      body: NarrowTypedRecord<{ created: string }>;
+    } & IWHATWG<Response>>>>();
   });
 
   it("wraps awaited handler return types in IMapable", () => {

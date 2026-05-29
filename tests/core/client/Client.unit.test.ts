@@ -128,6 +128,8 @@ describe("client", () => {
       const result = await client.invoke.products["/"].POST({ name: "Ada" });
       expect(result.raw.body.get("created")).toBe("Ada");
       expect(result.raw.body.raw()).toEqual({ created: "Ada" });
+      expect(result.raw.whatwg()).toBeInstanceOf(Response);
+      expect(result.raw.whatwg().status).toBe(200);
     }
     finally {
       server.stop?.();

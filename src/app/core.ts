@@ -535,6 +535,7 @@ export class Blazy<
     });
   }
 
+  // if status isnt mentioned explicitely it is granted that its 201, if its null its 404, if undefined its 204, if an error is thrown it returns 500 and logs error intearnally 
   get<
     TPath extends string,
     TContext extends HttpVerbHandlerCtx<
@@ -546,7 +547,7 @@ export class Blazy<
       {},
       ExtractParams<TPath>
     >,
-    THandler extends (ctx: TContext) => any = (ctx: TContext) => any,
+    THandler extends (ctx: TContext) => any = (ctx: TContext) => {status: number, body: unknown} | URecord | null | undefined,
   >(config: {
     path: TPath;
     handler: THandler;

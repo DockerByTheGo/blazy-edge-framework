@@ -4,7 +4,7 @@ import { TypedRecord } from "@blazyts/better-standard-library";
 
 import { HtmlResponse, JsonResponse, TextResponse } from "src/response";
 
-import type { HttpVerbHandlerCtx, QueryParams, RestRequestCtx, TypedRecordShape, TypedResponseBody } from "../types";
+import type { HttpVerbClientResponse, HttpVerbHandlerCtx, QueryParams, RestRequestCtx, TypedRecordShape, TypedResponseBody } from "../types";
 import type { RawRequestData } from "./types";
 
 type ResponseBody = ConstructorParameters<typeof Response>[0];
@@ -118,7 +118,28 @@ export function getHttpValidationTarget(rawCtx: unknown): unknown {
   return rawCtx;
 }
 
-export function wrapResponseBodyInTypedRecord<TReturn>(value: TReturn): TypedResponseBody<TReturn> {
+function attachWhatwgResponse<TValue>(value: TValue, response?: Response): TValue {
+  if (
+    response
+    && value !== null
+    && (typeof value === "object" || typeof value === "function")
+  ) {
+    Object.defineProperty(value, "whatwg", {
+      configurable: true,
+      enumerable: false,
+      value: () => response,
+    });
+  }
+
+  return value;
+}
+
+export function wrapResponseBodyInTypedRecord<TReturn>(
+  value: TReturn,
+  response?: Response,
+): HttpVerbClientResponse<TReturn> {
+  let nextValue: TypedResponseBody<TReturn>;
+
   if (
     value !== null
     && typeof value === "object"
@@ -127,11 +148,14 @@ export function wrapResponseBodyInTypedRecord<TReturn>(value: TReturn): TypedRes
     && typeof (value as { body: unknown }).body === "object"
     && !((value as { body: unknown }).body instanceof TypedRecord)
   ) {
-    return {
+    nextValue = {
       ...value,
       body: new TypedRecord((value as { body: URecord }).body),
     } as TypedResponseBody<TReturn>;
   }
+  else {
+    nextValue = value as TypedResponseBody<TReturn>;
+  }
 
-  return value as TypedResponseBody<TReturn>;
+  return attachWhatwgResponse(nextValue, response) as HttpVerbClientResponse<TReturn>;
 }

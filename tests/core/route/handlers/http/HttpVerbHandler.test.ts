@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { HttpVerbHandler } from "src/route/handlers";
-import type { HttpVerbHandlerCtx, NarrowTypedRecord } from "src/route/handlers";
+import type { HttpVerbHandlerCtx, IWHATWG, NarrowTypedRecord } from "src/route/handlers/variations/http/types";
 
 describe("HttpVerbHandler", () => {
   it("handleRequest delegates to the handler function", () => {
@@ -29,6 +29,8 @@ describe("HttpVerbHandler", () => {
         expectTypeOf(ctx.request.body.get("name")).toEqualTypeOf<string>();
         expectTypeOf(ctx.request.params).toEqualTypeOf<NarrowTypedRecord<{ productId: string }>>();
         expectTypeOf(ctx.request.params.get("productId")).toEqualTypeOf<string>();
+        expectTypeOf(ctx.request).toMatchTypeOf<IWHATWG<Request>>();
+        expectTypeOf(ctx.request.whatwg()).toEqualTypeOf<Request>();
 
         return {
           body: {
@@ -84,7 +86,7 @@ describe("HttpVerbHandler", () => {
     expectTypeOf(client).parameters.toEqualTypeOf<[{ name: string }]>();
     expectTypeOf(null as unknown as ReturnType<typeof client>).toMatchTypeOf<Promise<{
       body: NarrowTypedRecord<{ created: string }>;
-    }>>();
+    } & IWHATWG<Response>>>();
 
   });
 });

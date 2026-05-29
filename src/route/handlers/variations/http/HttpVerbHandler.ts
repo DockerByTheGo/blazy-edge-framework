@@ -31,13 +31,14 @@ export class HttpVerbHandler<
       const method = metadata.verb?.toUpperCase() ?? metadata.protocol?.toUpperCase() ?? "GET";
       const canHaveBody = !["GET", "HEAD"].includes(method);
 
-      const response = await (await fetch(metadata.serverUrl, {
+      const nativeResponse = await fetch(metadata.serverUrl, {
         method,
         headers: canHaveBody ? { "content-type": "application/json" } : undefined,
         body: canHaveBody ? JSON.stringify(body ?? {}) : undefined,
-      })).json() as TReturn;
+      });
+      const response = await nativeResponse.json() as TReturn;
 
-      return wrapResponseBodyInTypedRecord(response);
+      return wrapResponseBodyInTypedRecord(response, nativeResponse);
     }) as ReturnType<NormalRouteHandlerClientRepresentation<TCtx, TReturn>>;
 
     Object.assign(clientFn, {

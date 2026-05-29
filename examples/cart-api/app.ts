@@ -7,6 +7,15 @@ const cartService = {
     getAll: () => ["cart 1", "cart 2", "cart 3"]
 }
 
+
+function hi(){
+    if(Math){
+        return
+    }
+    return 3
+}
+
+
 export const app = BlazyConstructor
     .createProd()
     .addService("cartService", cartService)
@@ -15,11 +24,20 @@ export const app = BlazyConstructor
             path: "/:hi/:koko/lolo/:po",
             handler: v => {
                 console.log(v.request)
+                if(Math.random()){
+
                 return { 
                     hi: v.request.params.get("hi"),
                     ko: v.request.params.get("koko"),
                     po: v.request.params.get("po")
                 }
+                }
+
+                return {
+                    koko: "fr"
+                }
+
+                
             },
         }
     )

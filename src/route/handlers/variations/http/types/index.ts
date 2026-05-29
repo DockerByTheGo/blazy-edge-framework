@@ -1,17 +1,21 @@
 import type { IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server";
-import type { URecord } from "@blazyts/better-standard-library";
+import type { And, If, URecord } from "@blazyts/better-standard-library";
 
 import type { TypedRecord } from "@blazyts/better-standard-library";
 
 type ResponseBody = ConstructorParameters<typeof Response>[0];
+
+export interface IWHATWG<TReturn = unknown> {
+  whatwg: () => TReturn;
+}
 
 export type QueryValue = string | string[];
 export type QueryParams = Record<string, QueryValue>;
 export type TypedRecordShape<T> = T extends URecord
   ? T
   : T extends object
-    ? { [K in keyof T]: T[K] }
-    : URecord;
+  ? { [K in keyof T]: T[K] }
+  : URecord;
 
 export type NarrowTypedRecord<T extends object> = Omit<TypedRecord<URecord>, "get" | "has" | "raw" | "toJSON"> & {
   get: <K extends Extract<keyof T, string>>(v: K) => T[K];
@@ -24,7 +28,7 @@ export type RestRequestCtx<
   TBody = URecord,
   TParams extends object = URecord,
   TQuery extends QueryParams = QueryParams,
-> = {
+> = IWHATWG<Request> & {
   url: string;
   path: string;
   method: string;
@@ -33,7 +37,6 @@ export type RestRequestCtx<
   body: NarrowTypedRecord<TypedRecordShape<TBody>>;
   params: NarrowTypedRecord<TypedRecordShape<TParams>>;
   query: TQuery;
-  whatwg: () => Request;
 };
 
 export type RestResponseCtx = {
@@ -75,7 +78,60 @@ export type TypedResponseBody<TReturn> = Awaited<TReturn> extends { body: infer 
   ? Omit<Awaited<TReturn>, "body"> & { body: NarrowTypedRecord<TypedRecordShape<TBody>> }
   : Awaited<TReturn>;
 
-export type HttpVerbClientFunction<TCtx, TReturn> = ((...v: ClientBodyArgs<TCtx>) => Promise<TypedResponseBody<TReturn>>) & {
+import { panic, Try, type KeyOfOnlyStringKeys, } from "@blazyts/better-standard-library"
+import type { Extends } from "@blazyts/better-standard-library/src/type-level-functions/extends";
+
+export type ResponseObjectSchema = {
+  statuses: Record<string, /* make the normal response object with status and all the other shit */ URecord>
+
+}
+
+class ResponseObject<TResponseObjectSchema extends ResponseObjectSchema> {
+  constructor(private readonly response: Response) {
+
+  }
+
+  handle(v: {
+    [TStatus in KeyOfOnlyStringKeys<TResponseObjectSchema["statuses"]>]: (v:  
+    ) => unknown
+  }) {
+    return Try(
+      v[this.response.status],
+      {
+        ifNone: panic("handler for status" + this.response.status + "is not defined"),
+        ifNotNone: handler => handler(this.response)
+      }
+    )
+
+
+  }
+}
+
+type TransformResponseUnionToObject<TCtxUnion> = {
+  K in TCtxUnion -> TCtxUnion[K]
+}
+If<
+      Extends<TStatus, 204>,
+      null,
+      If<
+        Extends<TStatus, 404>,
+        null,
+        If<
+          Extends<TStatus, 500>,
+          null,
+          TResponseObjectSchema[TStatus]
+        >
+      >
+    >
+export type HttpVerbClientResponse<TReturn> = And<[
+  TypedResponseBody<TReturn>,
+  IWHATWG<Response>,
+  ResponseObject<
+
+  >
+]>;
+
+export type HttpVerbClientFunction<TCtx, TReturn> = ((...v: ClientBodyArgs<TCtx>) => Promise<HttpVerbClientResponse<TReturn>>) & {
   method?: string;
   path: string;
   metadata: HttpVerbClientMetadata;
