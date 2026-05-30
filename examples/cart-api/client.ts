@@ -18,11 +18,12 @@ console.log("----")
 
 console.log("http")
 const res2 = await client.invoke("hello")("d").lolo("mki")["/"].GET()
+console.log("http response", res2.raw.response.status, res2.raw.response.body)
 console.log(res2
     // .raw.k.statuses
     .raw.handle({
         "201": v => 
-            console.log("server returned 201 with", v),
+            console.log("server returned 201 with", v.body.toJSON()),
         "204": v => console.log("server returned 204"),
         "404": v => console.log("server returned 404"),
     })

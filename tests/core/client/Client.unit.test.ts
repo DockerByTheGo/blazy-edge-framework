@@ -105,7 +105,8 @@ describe("client", () => {
 
     try {
       const g = await client.invoke.test["/"].GET();
-      expect(g.raw).toEqual({ success: true });
+      expect(g.raw.response.status).toBe(201);
+      expect(g.raw.response.body.raw()).toEqual({ success: true });
     }
     finally {
       server.stop?.();
@@ -126,12 +127,13 @@ describe("client", () => {
 
     try {
       const result = await client.invoke.products["/"].POST({ name: "Ada" });
-      expect(result.raw.body.get("created")).toBe("Ada");
-      expect(result.raw.body.raw()).toEqual({ created: "Ada" });
+      expect(result.raw.response.body.get("created")).toBe("Ada");
+      expect(result.raw.response.body.raw()).toEqual({ created: "Ada" });
+      expect(result.raw.response.status).toBe(201);
       expect(result.raw.whatwg()).toBeInstanceOf(Response);
       expect(result.raw.whatwg().status).toBe(201);
       expect(result.raw.handle({
-        201: response => (response as { body: { created: string } }).body.created,
+        201: response => (response as { body: { get: (key: "created") => string } }).body.get("created"),
       })).toBe("Ada");
     }
     finally {
@@ -156,15 +158,19 @@ describe("client", () => {
 
     try {
       const empty = await client.invoke.empty["/"].GET();
+      expect(empty.raw.response.status).toBe(204);
+      expect(empty.raw.response.body).toBeNull();
       expect(empty.raw.whatwg().status).toBe(204);
       expect(empty.raw.handle({
-        204: response => response,
+        204: response => (response as { body: null }).body,
       })).toBeNull();
 
       const missing = await client.invoke.missing["/"].GET();
+      expect(missing.raw.response.status).toBe(404);
+      expect(missing.raw.response.body).toBeNull();
       expect(missing.raw.whatwg().status).toBe(404);
       expect(missing.raw.handle({
-        404: response => response,
+        404: response => (response as { body: null }).body,
       })).toBeNull();
     }
     finally {
@@ -188,7 +194,8 @@ describe("client", () => {
 
     try {
       const result = await client.invoke("hello")("d")["/"].GET();
-      expect(result.raw).toEqual({
+      expect(result.raw.response.status).toBe(201);
+      expect(result.raw.response.body.raw()).toEqual({
         hi: "hello",
         ko: "d",
       });

@@ -3,7 +3,7 @@ import type { URecord } from "@blazyts/better-standard-library";
 import { TypedRecord } from "@blazyts/better-standard-library";
 
 
-import type { HttpVerbClientResponse, HttpVerbHandlerCtx, QueryParams, RestRequestCtx, TypedRecordShape, TypedResponseBody } from "../types";
+import type { ClientHttpResponse, HttpVerbClientResponse, HttpVerbHandlerCtx, QueryParams, RestRequestCtx, TypedRecordShape } from "../types";
 import type { RawRequestData } from "./types";
 import { HtmlResponse, JsonResponse, TextResponse } from "../responses";
 
@@ -154,7 +154,7 @@ export function wrapResponseBodyInTypedRecord<TReturn>(
   value: TReturn,
   response?: Response,
 ): HttpVerbClientResponse<TReturn> {
-  let nextValue: TypedResponseBody<TReturn>;
+  let body: unknown;
 
   if (
     value !== null
@@ -164,14 +164,25 @@ export function wrapResponseBodyInTypedRecord<TReturn>(
     && typeof (value as { body: unknown }).body === "object"
     && !((value as { body: unknown }).body instanceof TypedRecord)
   ) {
-    nextValue = {
-      ...value,
-      body: new TypedRecord((value as { body: URecord }).body),
-    } as TypedResponseBody<TReturn>;
+    body = new TypedRecord((value as { body: URecord }).body);
+  }
+  else if (
+    value !== null
+    && typeof value === "object"
+    && !(value instanceof TypedRecord)
+  ) {
+    body = new TypedRecord(value as URecord);
   }
   else {
-    nextValue = value as TypedResponseBody<TReturn>;
+    body = value;
   }
 
-  return attachWhatwgResponse(nextValue, response, value) as HttpVerbClientResponse<TReturn>;
+  const clientResponse = {
+    response: {
+      body,
+      status: response?.status ?? 200,
+    },
+  } as ClientHttpResponse<TReturn>;
+
+  return attachWhatwgResponse(clientResponse, response, clientResponse.response) as HttpVerbClientResponse<TReturn>;
 }

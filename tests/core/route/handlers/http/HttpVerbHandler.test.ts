@@ -110,7 +110,10 @@ describe("HttpVerbHandler", () => {
     });
     expectTypeOf(client).parameters.toEqualTypeOf<[{ name: string }]>();
     expectTypeOf(null as unknown as ReturnType<typeof client>).toMatchTypeOf<Promise<{
-      body: NarrowTypedRecord<{ created: string }>;
+      response: {
+        body: NarrowTypedRecord<{ created: string }>;
+        status: number;
+      };
     } & IWHATWG<Response>>>();
 
   });

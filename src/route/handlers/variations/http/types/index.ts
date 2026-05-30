@@ -9,7 +9,7 @@ export interface IWHATWG<TReturn = unknown> {
 
 export type QueryValue = string | string[];
 export type QueryParams = Record<string, QueryValue>;
-import { panic, Try, type And, type If, type URecord } from "@blazyts/better-standard-library";
+import type { And, URecord } from "@blazyts/better-standard-library";
 
 
 type ResponseBody = ConstructorParameters<typeof Response>[0];
@@ -82,50 +82,51 @@ export type TypedResponseBody<TReturn> = Awaited<TReturn> extends { body: infer 
   ? Omit<Awaited<TReturn>, "body"> & { body: NarrowTypedRecord<TypedRecordShape<TBody>> }
   : Awaited<TReturn>;
 
+export type TypedClientResponseBody<TBody> = TBody extends object
+  ? NarrowTypedRecord<TypedRecordShape<TBody>>
+  : TBody;
+
+export type ClientHttpResponse<TReturn, TStatus extends number = number> = {
+  response: {
+    body: Awaited<TReturn> extends { body: infer TBody }
+      ? TypedClientResponseBody<TBody>
+      : TypedClientResponseBody<Awaited<TReturn>>;
+    status: TStatus;
+  };
+};
+
 
 
 export type ResponseObjectSchema = {
-  statuses: Record<string, /* make the normal response object with status and all the other shit */ URecord>
-  
+  statuses: Record<PropertyKey, unknown>;
+};
+
+export interface IResponseObject<TResponseObjectSchema> {
+  handle(v: TResponseObjectSchema extends { statuses: infer TStatuses }
+    ? Partial<{
+        [TStatus in keyof TStatuses]: (
+          v: TStatuses[TStatus]
+        ) => unknown;
+      }>
+    : never): unknown;
 }
-
-class ResponseObject<TResponseObjectSchema extends ResponseObjectSchema> {
-  constructor(private readonly response: Response) {
-
-  }
-
-  public k: TResponseObjectSchema
-
-  handle(v: {
-    [TStatus in keyof TResponseObjectSchema["statuses"] ]: (v:  
-    TResponseObjectSchema["statuses"][TStatus]) => unknown
-  }) {
-    return Try(
-      v[this.response.status],
-      {
-        ifNone: panic("handler for status" + this.response.status + "is not defined"),
-        ifNotNone: handler => handler(this.response)
-      }
-    )
-  }
-}
-
-type Res = null | undefined | { status: number, body: unknown } | URecord
 
 type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (x: infer I) => void ? I : never;
 
-type Transform<T extends Res> = T extends null ? { 204: null } :
-  T extends undefined ? { 404: null } :
-  T extends { status: infer S extends PropertyKey; body: infer B } ? { [K in S]: B } :
-  { 201: T }
+type Transform<T> = T extends null ? { 204: { body: null; status: 204 } } :
+  T extends undefined ? { 404: { body: null; status: 404 } } :
+  T extends { status: infer S extends number; body: infer B } ? { [K in S]: { body: TypedClientResponseBody<B>; status: K } } :
+  { 201: ClientHttpResponse<T, 201>["response"] }
 type TransformUnion<T> = UnionToIntersection<Transform<T>>;
 
+export type TransformResponseUnionToObject<T> = {
+  statuses: TransformUnion<T>;
+};
+
 export type HttpVerbClientResponse<TReturn> = And<[
-  TypedResponseBody<TReturn>,
+  ClientHttpResponse<TReturn>,
   IWHATWG<Response>,
-  ResponseObject<
-    {statuses: TransformUnion<TReturn>}
-  >
+  IResponseObject<TransformResponseUnionToObject<TReturn>>
 ]>;
 
 export type HttpVerbClientFunction<TCtx, TReturn> = ((...v: ClientBodyArgs<TCtx>) => Promise<HttpVerbClientResponse<TReturn>>) & {

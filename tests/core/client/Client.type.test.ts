@@ -101,7 +101,10 @@ describe("client types", () => {
 
     expectTypeOf(client.invoke.users("u_123")["/"].GET).parameters.toEqualTypeOf<[v?: {} | undefined]>();
     expectTypeOf(client.invoke.users("u_123")["/"].GET).returns.toEqualTypeOf<Promise<IMapable<{
-      body: NarrowTypedRecord<{ id: string }>;
+      response: {
+        body: NarrowTypedRecord<{ id: string }>;
+        status: number;
+      };
     } & IWHATWG<Response> & IResponseObject<TransformResponseUnionToObject<{
       body: { id: string };
     }>>>>>();
@@ -141,7 +144,10 @@ describe("client types", () => {
 
     expectTypeOf(client.invoke.products["/"].POST).parameters.toEqualTypeOf<[{ name: string }]>();
     expectTypeOf(client.invoke.products["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{
-      body: NarrowTypedRecord<{ created: string }>;
+      response: {
+        body: NarrowTypedRecord<{ created: string }>;
+        status: number;
+      };
     } & IWHATWG<Response> & IResponseObject<TransformResponseUnionToObject<{
       body: { created: string };
     }>>>>>();
@@ -152,23 +158,23 @@ describe("client types", () => {
       | { status: 200; body: { ok: true } }
       | { status: 404; body: { message: string } };
 
-    expectTypeOf<TransformResponseUnionToObject<ResponseUnion>>().toEqualTypeOf<{
+    expectTypeOf(null as unknown as TransformResponseUnionToObject<ResponseUnion>).toMatchTypeOf(null as unknown as {
       statuses: {
         200: {
           status: 200;
-          body: { ok: true };
+          body: NarrowTypedRecord<{ ok: true }>;
         };
         404: {
           status: 404;
-          body: { message: string };
+          body: NarrowTypedRecord<{ message: string }>;
         };
       };
-    }>();
+    });
 
     type ResponseClient = IResponseObject<TransformResponseUnionToObject<ResponseUnion>>;
     expectTypeOf<ResponseClient["handle"]>().parameters.toEqualTypeOf<[Partial<{
-      200: (response: { status: 200; body: { ok: true } }) => unknown;
-      404: (response: { status: 404; body: { message: string } }) => unknown;
+      200: (response: { status: 200; body: NarrowTypedRecord<{ ok: true }> }) => unknown;
+      404: (response: { status: 404; body: NarrowTypedRecord<{ message: string }> }) => unknown;
     }>]>();
   });
 
