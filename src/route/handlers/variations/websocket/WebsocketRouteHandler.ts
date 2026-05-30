@@ -1,7 +1,7 @@
 import type { IRouteHandler } from "@blazyts/backend-lib";
 import type { IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server";
 
-import { TypedRecord } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
+import { TypedRecord } from "../http/HttpVerbRouteHandler";
 
 import type { Schema, WeboscketRouteCleintRepresentation, WebSocketMessage, WebSocketMessenger, WebSocketResponse } from "./types";
 import { getWebsocketConnection } from "./WebsocketConnectionSingleton";

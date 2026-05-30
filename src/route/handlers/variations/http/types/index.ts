@@ -5,7 +5,7 @@ import type { TypedRecord, UnionToIntersection } from "@blazyts/better-standard-
 export type QueryValue = string | string[];
 export type QueryParams = Record<string, QueryValue>;
 import type { And, URecord } from "@blazyts/better-standard-library";
-import type { IWHATWG } from "src/types";
+import type { IWHATWG } from "../../../../../types";
 
 
 type ResponseBody = ConstructorParameters<typeof Response>[0];

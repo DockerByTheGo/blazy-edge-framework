@@ -1,7 +1,7 @@
 import type { KeyOfOnlyStringKeys, URecord } from "@blazyts/better-standard-library";
 import type z from "zod/v4";
 
-import type { NarrowTypedRecord } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
+import type { NarrowTypedRecord } from "../../http/HttpVerbRouteHandler";
 
 export type WebSocketMessage = {
   type: string;

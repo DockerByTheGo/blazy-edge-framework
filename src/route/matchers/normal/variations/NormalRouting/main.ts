@@ -3,7 +3,7 @@ import type { Optionable, TypeMarker } from "@blazyts/better-standard-library";
 
 import { panicTypeOnlyVariable } from "@blazyts/better-standard-library";
 
-import type { ExtractParams } from "src/route/matchers/dsl/types/extractParams";
+import type { ExtractParams } from "../../../dsl/types/extractParams";
 
 export class NormalRouting<T extends string> implements RouteMAtcher<ExtractParams<T>> {
   type = "normal";

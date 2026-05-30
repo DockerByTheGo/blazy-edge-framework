@@ -1,6 +1,6 @@
 import { Hooks } from "@blazyts/backend-lib";
 
-import { treeRouteFinder } from "src/route/finders";
+import { treeRouteFinder } from "../route/finders";
 
 import { Blazy } from "./core";
 

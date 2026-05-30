@@ -1,6 +1,5 @@
-import type { Optionable } from "@blazyts/better-standard-library";
+import type { Optionable, SimpleResult } from "@blazyts/better-standard-library";
 
-import type { SimpleResult } from "../../main";
 
 export type CacheEntry<TValue> = {
   key: string;

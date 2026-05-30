@@ -8,18 +8,18 @@ import { RouterObject } from "@blazyts/backend-lib";
 import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
 import { entries } from "@blazyts/better-standard-library";
 
-import type { HttpVerbHandlerCtx } from "src/route/handlers";
-import type { Schema, WebSocketMessage } from "src/route/handlers/variations/websocket/types";
-import type { ExtractParams } from "src/route/matchers/dsl/types/extractParams";
+import type { HttpVerbHandlerCtx } from "../route/handlers";
+import type { Schema, WebSocketMessage } from "../route/handlers/variations/websocket/types";
+import type { ExtractParams } from "../route/matchers/dsl/types/extractParams";
 
-import { HttpVerbHandler } from "src/route/handlers";
-import { FileRouteHandler } from "src/route/handlers/variations/file/File";
-import { normalizeFileRoute } from "src/route/handlers/variations/file/utils";
-import { createHttpVerbHandlerCtx, getHttpValidationTarget, TypedRecord } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
-import { WebsocketRouteHandler } from "src/route/handlers/variations/websocket";
-import { DSLRouting } from "src/route/matchers/dsl/main";
-import { NormalRouting } from "src/route/matchers/normal";
-import { ServiceManager } from "src/services/main";
+import { HttpVerbHandler } from "../route/handlers";
+import { FileRouteHandler } from "../route/handlers/variations/file/File";
+import { normalizeFileRoute } from "../route/handlers/variations/file/utils";
+import { createHttpVerbHandlerCtx, getHttpValidationTarget, TypedRecord } from "../route/handlers/variations/http/HttpVerbRouteHandler";
+import { WebsocketRouteHandler } from "../route/handlers/variations/websocket";
+import { DSLRouting } from "../route/matchers/dsl/main";
+import { NormalRouting } from "../route/matchers/normal";
+import { ServiceManager } from "../services/main";
 
 import type { ClientBuilder } from "../client/client-builder/clientBuilder";
 import type { Service, ServiceBase } from "../services/main/Service";
@@ -28,7 +28,7 @@ import type { HandlerProtocol } from "../types";
 import { CleintBuilderConstructors } from "../client/client-builder/clientBuilder";
 import { treeRouteFinder } from "../route/finders";
 import type { ZodObject } from "zod/v4";
-import { FailedValidationResponse, JsonResponse } from "src/route/handlers/variations/http/responses";
+import { FailedValidationResponse, JsonResponse } from "../route/handlers/variations/http/responses";
 
 const FILE_SAVER_SERVICE_NAME = "fileSaver";
 const CACHE_SERVICE_NAME = "cache";
@@ -146,7 +146,8 @@ export class Blazy<
       THandler,
       TProtocol
     >,
-    THooks
+    THooks,
+    Tservices
   > {
     const routeString = v.routeMatcher.getRouteString();
     const segments = routeString.split("/").filter(s => s !== "");
@@ -194,7 +195,8 @@ export class Blazy<
         THandler,
         TProtocol
       >,
-      THooks
+      THooks,
+      Tservices
     >;
   }
 
@@ -286,7 +288,8 @@ export class Blazy<
           >,
         ]>;
       },
-    ]>
+    ]>,
+    Tservices
   > {
     this.beforeHandler({ name, handler: func });
     return this;
@@ -366,7 +369,8 @@ export class Blazy<
       FileRouteHandler,
       "static"
     >,
-    THooks
+    THooks,
+    Tservices
   > {
     const normalizedRoute = normalizeFileRoute(route ?? filePath);
     const clientRoute = normalizedRoute.replace(/^\/static(?=\/|$)/, "") || "/";
@@ -400,7 +404,8 @@ export class Blazy<
       >,
       TProtocol
     >,
-    THooks
+    THooks,
+    Tservices
   > {
     const metadata = { subRoute: v.path, ...v.meta };
     const protocol = (v.meta?.protocol as TProtocol) || ("http" as TProtocol);
@@ -472,11 +477,11 @@ export class Blazy<
     TPath extends string,
     TArgs extends z.ZodObject | undefined = undefined,
     TContext extends HttpVerbHandlerCtx<
-      {},
+      TDCtx,
       TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
       ExtractParams<TPath>
     > = HttpVerbHandlerCtx<
-      {},
+      TDCtx,
       TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
       ExtractParams<TPath>
     >,
@@ -497,7 +502,8 @@ export class Blazy<
       >,
       "POST"
     >,
-    THooks
+    THooks,
+    Tservices
   > {
     // (this.services.services.cache as CacheService).registerHandler(`POST:${config.path}`, new NormalRouteHandler(config.handeler, { subRoute: config.path, verb: "POST", protocol: "POST" }))
     return this.http<TPath, THandler, "POST", TArgs extends undefined ? null : NonNullable<TArgs>>({
@@ -539,11 +545,11 @@ export class Blazy<
   get<
     TPath extends string,
     TContext extends HttpVerbHandlerCtx<
-      {},
+      TDCtx,
       {},
       ExtractParams<TPath>
     > = HttpVerbHandlerCtx<
-      {},
+      TDCtx,
       {},
       ExtractParams<TPath>
     >,
@@ -563,7 +569,8 @@ export class Blazy<
       >,
       "GET"
     >,
-    THooks
+    THooks,
+    Tservices
   > {
     return this.http<TPath, THandler, "GET">({
       path: config.path,
@@ -630,7 +637,8 @@ export class Blazy<
       WebsocketRouteHandler<TMessages>,
       "ws"
     >,
-    THooks
+    THooks,
+    Tservices
   > {
     const routeMatcher = new DSLRouting(v.path);
 
