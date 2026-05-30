@@ -77,7 +77,7 @@ export class Client<TRouteTree extends RouteTree> {
   public readonly invoke: ClientObject<TRouteTree>;
 
   public constructor(
-    private readonly routeTree: TRouteTree,
+    public readonly routeTree: TRouteTree,
     public readonly url: string,
     private readonly hooks: ClientHooks = emptyClientHooks(),
   ) {

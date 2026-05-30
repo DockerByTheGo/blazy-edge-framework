@@ -7,15 +7,6 @@ const cartService = {
     getAll: () => ["cart 1", "cart 2", "cart 3"]
 }
 
-
-function hi(){
-    if(Math){
-        return
-    }
-    return 3
-}
-
-
 export const app = BlazyConstructor
     .createProd()
     .addService("cartService", cartService)
@@ -24,20 +15,19 @@ export const app = BlazyConstructor
             path: "/:hi/:koko/lolo/:po",
             handler: v => {
                 console.log(v.request)
-                if(Math.random()){
+                if (Math.random()) {
 
-                return { 
-                    hi: v.request.params.get("hi"),
-                    ko: v.request.params.get("koko"),
-                    po: v.request.params.get("po")
-                }
+                    return {
+                        hi: v.request.params.get("hi"),
+                        ko: v.request.params.get("koko"),
+                        po: v.request.params.get("po")
+                    }
+                } else if (Math) {
+                    return null
+                } else if (Math) {
+                    return undefined
                 }
 
-                return {
-                    koko: "fr"
-                }
-
-                
             },
         }
     )
@@ -67,7 +57,7 @@ export const app = BlazyConstructor
         handler: ctx => {
             console.log(ctx.request.body.get("id"))
 
-            return { body: cartService.getAll() };
+            return { items: cartService.getAll() };
         },
         args: z.object({
             id: z.string(),

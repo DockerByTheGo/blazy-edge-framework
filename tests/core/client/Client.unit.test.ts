@@ -130,6 +130,9 @@ describe("client", () => {
       expect(result.raw.body.raw()).toEqual({ created: "Ada" });
       expect(result.raw.whatwg()).toBeInstanceOf(Response);
       expect(result.raw.whatwg().status).toBe(200);
+      expect(result.raw.handle({
+        200: response => (response as { body: { created: string } }).body.created,
+      })).toBe("Ada");
     }
     finally {
       server.stop?.();
