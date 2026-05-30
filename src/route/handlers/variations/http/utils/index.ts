@@ -118,7 +118,11 @@ export function getHttpValidationTarget(rawCtx: unknown): unknown {
   return rawCtx;
 }
 
-function attachWhatwgResponse<TValue>(value: TValue, response?: Response): TValue {
+function attachWhatwgResponse<TValue>(
+  value: TValue,
+  response?: Response,
+  parsedResponse: unknown = value,
+): TValue {
   if (
     response
     && value !== null
@@ -128,6 +132,17 @@ function attachWhatwgResponse<TValue>(value: TValue, response?: Response): TValu
       configurable: true,
       enumerable: false,
       value: () => response,
+    });
+    Object.defineProperty(value, "handle", {
+      configurable: true,
+      enumerable: false,
+      value: (handlers: Record<string | number, (response: unknown) => unknown>) => {
+        const handler = handlers[response.status] ?? handlers[String(response.status)];
+        if (typeof handler !== "function") {
+          throw new Error(`handler for status ${response.status} is not defined`);
+        }
+        return handler(parsedResponse);
+      },
     });
   }
 
@@ -157,5 +172,5 @@ export function wrapResponseBodyInTypedRecord<TReturn>(
     nextValue = value as TypedResponseBody<TReturn>;
   }
 
-  return attachWhatwgResponse(nextValue, response) as HttpVerbClientResponse<TReturn>;
+  return attachWhatwgResponse(nextValue, response, value) as HttpVerbClientResponse<TReturn>;
 }
