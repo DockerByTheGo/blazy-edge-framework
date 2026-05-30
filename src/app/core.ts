@@ -1,7 +1,7 @@
 import type { IRouteHandler, RouteFinder } from "@blazyts/backend-lib/src/core/server";
 import type { PathStringToObject, RouterHooks, type RouteTree } from "@blazyts/backend-lib/src/core/server/router/types";
-import type { Hook, Hooks, HooksDefault } from "@blazyts/backend-lib/src/core/types/Hooks/Hooks";
-import type { And, IFunc, TypeSafeOmit, URecord } from "@blazyts/better-standard-library";
+import type { Hook, Hooks, HooksDefault } from "@blazyts/backend-lib";
+import type { And, TypeSafeOmit, URecord } from "@blazyts/better-standard-library";
 import type z from "zod/v4";
 
 import { RouterObject } from "@blazyts/backend-lib";
@@ -28,7 +28,7 @@ import type { HandlerProtocol } from "../types";
 import { CleintBuilderConstructors } from "../client/client-builder/clientBuilder";
 import { treeRouteFinder } from "../route/finders";
 import type { ZodObject } from "zod/v4";
-import { FailedValidationResponse } from "src/route/handlers/variations/http/responses";
+import { FailedValidationResponse, JsonResponse } from "src/route/handlers/variations/http/responses";
 
 const FILE_SAVER_SERVICE_NAME = "fileSaver";
 const CACHE_SERVICE_NAME = "cache";
@@ -472,11 +472,11 @@ export class Blazy<
     TPath extends string,
     TArgs extends z.ZodObject | undefined = undefined,
     TContext extends HttpVerbHandlerCtx<
-      TDCtx,
+      {},
       TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
       ExtractParams<TPath>
     > = HttpVerbHandlerCtx<
-      TDCtx,
+      {},
       TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
       ExtractParams<TPath>
     >,
@@ -567,7 +567,6 @@ export class Blazy<
   > {
     return this.http<TPath, THandler, "GET">({
       path: config.path,
-      // handler: v => v.path === "GET" ? config.handler(v) : this.notFound(),
       handler: config.handler,
       meta: { verb: "GET", protocol: "GET" as const },
       cache: config.cache,

@@ -1,5 +1,6 @@
 import type { URecord } from "@blazyts/better-standard-library";
 
+import type { SimpleResult } from "src/services/main";
 import type { ServiceBase } from "src/services/main";
 
 export type GenericLog = {
@@ -31,8 +32,10 @@ export type ServiceLog = {
   method: string;
 } & GenericLog;
 
+export type LoggerResult = SimpleResult<void, "failed">;
+
 export type ILogger = {
-  logRequest: (req: Request) => Promise<Result>;
-  logHookExecution: (hookType: "beforeHandler" | "afterHandler", log: HookLog) => Promise<Result>;
-  logResponse: (res: Response) => Promise<Result>;
+  logRequest: (req: Request) => Promise<LoggerResult>;
+  logHookExecution: (hookType: "beforeHandler" | "afterHandler", log: HookLog) => Promise<LoggerResult>;
+  logResponse: (res: Response) => Promise<LoggerResult>;
 } & ServiceBase<{ collectLogsFrom: ("beforeHandlerHooks" | "afterHandlerHooks" | "requestHandler" | "services")[] }>;

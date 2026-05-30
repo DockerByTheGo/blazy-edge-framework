@@ -1,25 +1,14 @@
-export type ServiceResult<TValue, TError extends string> =
-  | {
-      isOk: () => true;
-      isError: () => false;
-      value: TValue;
-      unpack: () => TValue;
-    }
-  | {
-      isOk: () => false;
-      isError: () => true;
-      error: TError;
-      unpack: () => never;
-    };
+import type { OptionalPromise, SimpleResult } from "@blazyts/better-standard-library";
 
 export type SaveIfNotExistsOptions = {
   encoding?: BufferEncoding;
 };
 
-export type SaveIfNotExistsResult = ServiceResult<
+export type SaveIfNotExistsResult = SimpleResult<
   { path: string },
   "already-exists" | "failed"
 >;
+export type FileExistsResult = SimpleResult<{ path: string | null }, "failed">;
 
 export type IFileSaver = {
   config: Record<string, unknown>;
@@ -30,5 +19,5 @@ export type IFileSaver = {
     options?: SaveIfNotExistsOptions,
   ) => Promise<SaveIfNotExistsResult>;
 
-  exists: (file: File) => Promise<string | null>;
+  exists: (file: File | string) => OptionalPromise<FileExistsResult>;
 };

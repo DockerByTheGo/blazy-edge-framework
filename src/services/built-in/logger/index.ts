@@ -1,1 +1,1 @@
-export * from "./Ilogger"
+export * from "./ILogger";

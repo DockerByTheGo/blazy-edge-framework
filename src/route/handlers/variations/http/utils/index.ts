@@ -89,7 +89,7 @@ export function createHttpVerbHandlerCtx<TBody = unknown, TParams extends object
     ...request,
     whatwg: () => createRestRequest(request),
   };
-  const response = {
+  const createResponse = {
     standard: createRestResponse,
     json: JsonResponse,
     text: TextResponse,
@@ -106,7 +106,7 @@ export function createHttpVerbHandlerCtx<TBody = unknown, TParams extends object
   return {
     ...appCtx,
     request: standardRequest,
-    response,
+    createResponse,
   } as HttpVerbHandlerCtx<URecord, TBody, TParams>;
 }
 

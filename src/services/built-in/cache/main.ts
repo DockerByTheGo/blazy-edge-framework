@@ -1,5 +1,7 @@
 import type { Optionable } from "@blazyts/better-standard-library";
 
+import type { SimpleResult } from "../../main";
+
 export type CacheEntry<TValue> = {
   key: string;
   value: TValue;
@@ -8,14 +10,16 @@ export type CacheEntry<TValue> = {
 };
 
 export type MaybePromise<T> = T | Promise<T>;
+export type CacheServiceError = "failed";
+export type CacheResult<TValue> = SimpleResult<TValue, CacheServiceError>;
 
 export type ICacheService<TValue = unknown> = {
   config: Record<string, unknown>;
-  flush: () => MaybePromise<void>;
-  getAll: () => MaybePromise<CacheEntry<TValue>[]>;
-  getEntry: (key: string) => MaybePromise<Optionable<TValue>>;
-  hasEntry: (key: string) => MaybePromise<boolean>;
-  invalidate: (key: string) => MaybePromise<boolean>;
-  saveEntry: (key: string, value: TValue, ttl?: number) => MaybePromise<void>;
-  setEntry: (key: string, value: TValue, ttl?: number) => MaybePromise<void>;
+  flush: () => MaybePromise<CacheResult<void>>;
+  getAll: () => MaybePromise<CacheResult<CacheEntry<TValue>[]>>;
+  getEntry: (key: string) => MaybePromise<CacheResult<Optionable<TValue>>>;
+  hasEntry: (key: string) => MaybePromise<CacheResult<boolean>>;
+  invalidate: (key: string) => MaybePromise<CacheResult<boolean>>;
+  saveEntry: (key: string, value: TValue, ttl?: number) => MaybePromise<CacheResult<void>>;
+  setEntry: (key: string, value: TValue, ttl?: number) => MaybePromise<CacheResult<void>>;
 };

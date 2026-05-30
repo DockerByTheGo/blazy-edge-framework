@@ -1,15 +1,11 @@
 import type { IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server";
 
-import type { TypedRecord } from "@blazyts/better-standard-library";
-
-
-export interface IWHATWG<TReturn = unknown> {
-  whatwg: () => TReturn;
-}
+import type { TypedRecord, UnionToIntersection } from "@blazyts/better-standard-library";
 
 export type QueryValue = string | string[];
 export type QueryParams = Record<string, QueryValue>;
 import type { And, URecord } from "@blazyts/better-standard-library";
+import type { IWHATWG } from "src/types";
 
 
 type ResponseBody = ConstructorParameters<typeof Response>[0];
@@ -59,7 +55,7 @@ export type HttpVerbHandlerCtx<
   app?: TAppCtx;
   meta?: Request;
   request: RestRequestCtx<TBody, TParams, TQuery>;
-  response: RestResponseCtx;
+  createResponse: RestResponseCtx;
 } & TAppCtx;
 
 export type HttpVerbHandlerMetadata = {
@@ -111,7 +107,6 @@ export interface IResponseObject<TResponseObjectSchema> {
     : never): unknown;
 }
 
-type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (x: infer I) => void ? I : never;
 
 type Transform<T> = T extends null ? { 204: { body: null; status: 204 } } :
   T extends undefined ? { 404: { body: null; status: 404 } } :

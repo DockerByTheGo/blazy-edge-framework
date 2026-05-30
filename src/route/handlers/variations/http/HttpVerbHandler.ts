@@ -1,9 +1,6 @@
 import type { IRouteHandler } from "@blazyts/backend-lib";
 import type { URecord } from "@blazyts/better-standard-library";
-
 import { fetch } from "bun";
-
-
 import type { ClientBodyArgs, HttpVerbClientMetadata, HttpVerbHandlerMetadata, NormalRouteHandlerClientRepresentation } from "./types";
 import { wrapResponseBodyInTypedRecord } from "./utils";
 import { JsonResponse } from "./responses";

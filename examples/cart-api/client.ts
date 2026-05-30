@@ -6,9 +6,8 @@ client.invoke.ws("room-1")["/"].ws.handle["new-message"](v => {
     console.log("recieved message 1234", v.message.body.get("content"))
 })
 
-
 client.invoke.ws("room-1")["/"].ws.send["new-message"]({content: ""})
-client.invoke.rpc.getCart["/"].POST()
+client.invoke.rpc.getCart["/"].POST({"id": ""})
 
 setTimeout(() => process.exit(0),3000)
 

@@ -10,6 +10,10 @@ const cartService = {
 export const app = BlazyConstructor
     .createProd()
     .addService("cartService", cartService)
+    .get({
+        path: "/hii",
+        handler: v => v
+    })
     .get(
         {
             path: "/:hi/:koko/lolo/:po",
