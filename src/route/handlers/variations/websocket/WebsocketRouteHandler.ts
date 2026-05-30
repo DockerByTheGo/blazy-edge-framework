@@ -1,11 +1,11 @@
 import type { IRouteHandler } from "@blazyts/backend-lib";
 import type { IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server";
 
-import type { Schema, WeboscketRouteCleintRepresentation, WebSocketMessage, WebSocketResponse } from "./types";
+import { TypedRecord } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
 
-import { formatFailedValidation } from "src/response";
-
+import type { Schema, WeboscketRouteCleintRepresentation, WebSocketMessage, WebSocketMessenger, WebSocketResponse } from "./types";
 import { getWebsocketConnection } from "./WebsocketConnectionSingleton";
+import { formatFailedValidation } from "../http/responses";
 
 type WebsocketRouteMetadata = Partial<IRouteHandlerMetadata> & {
   subRoute: string;
@@ -21,6 +21,28 @@ export class WebsocketRouteHandler<
   ) {
   }
 
+  private createWebSocketMessenger(
+    ws: WebSocket | undefined,
+    path = this.metadata.subRoute,
+    params?: WebSocketMessage["params"],
+  ): WebSocketMessenger<TMessagesSchema["messagesItCanSend"]> {
+    const socket = (ws ?? { send: () => {} }) as WebSocketMessenger<TMessagesSchema["messagesItCanSend"]>;
+
+    socket.message = (type, body) => {
+      const messageSchema = this.schema.messagesItCanSend[type];
+      const parsed = messageSchema.schema.parse(body);
+
+      socket.send(JSON.stringify({
+        body: parsed,
+        params,
+        path,
+        type,
+      }));
+    };
+
+    return socket;
+  }
+
   handleRequest(message: WebSocketMessage): WebSocketResponse {
     const messageHandler = this.schema.messagesItCanRecieve[message.type];
     if (messageHandler) {
@@ -28,10 +50,10 @@ export class WebsocketRouteHandler<
       if (parsed.success) {
         messageHandler.handler({
           message: {
-            body: parsed.data,
-            params: (message.params ?? {}) as any,
+            body: new TypedRecord(parsed.data),
+            params: new TypedRecord((message.params ?? {}) as any),
           },
-          ws: message.ws as WebSocket,
+          ws: this.createWebSocketMessenger(message.ws, message.path, message.params),
         });
       }
       else {
@@ -53,16 +75,17 @@ export class WebsocketRouteHandler<
 
   getClientRepresentation = (metadata: IRouteHandlerMetadata): WeboscketRouteCleintRepresentation<TMessagesSchema> => {
     const wsUrl = metadata.serverUrl.replace(/^http/, "ws");
-
-    const ws = getWebsocketConnection(wsUrl);
+    const routePath = metadata.path ?? this.metadata.subRoute;
+    const getWs = () => getWebsocketConnection(wsUrl);
 
     const send = {};
     Object
       .entries(this.schema.messagesItCanRecieve)
       .forEach(([messageName, message], i) => {
         send[messageName] = async (data) => {
+          const ws = getWs();
           const res = message.schema.parse(data);
-          const dataToSend: WebSocketMessage & {} = { body: res, path: this.metadata.subRoute, type: messageName };
+          const dataToSend: WebSocketMessage & {} = { body: res, path: routePath, type: messageName };
           const ddd = JSON.stringify(dataToSend);
 
           // Wait for WebSocket to be open
@@ -88,7 +111,27 @@ export class WebsocketRouteHandler<
       .forEach(
         ([messageName, message], i) => {
           handle[messageName] = (callback: (data) => void) => {
-            getWebsocketConnection;
+            const ws = getWs();
+
+            ws.addEventListener("message", (event) => {
+              const rawMessage = typeof event.data === "string"
+                ? JSON.parse(event.data) as WebSocketMessage
+                : event.data as WebSocketMessage;
+
+              if (rawMessage.type !== messageName) {
+                return;
+              }
+
+              const parsed = message.schema.parse(rawMessage.body);
+
+              callback({
+                message: {
+                  body: new TypedRecord(parsed),
+                  params: new TypedRecord((rawMessage.params ?? {}) as any),
+                },
+                ws,
+              });
+            });
           };
         },
       );

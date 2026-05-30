@@ -55,6 +55,6 @@ const res = BlazyConstructor
 
 const client = res.createClient().createClient()("htto://locahost:3000")
 
-client.invoke[":dynamic-param"]["/"].GET().then(v => v.map(v => v.at(0)))
-client.invoke[":dynamic-para"]["/"].GET()
+client.invoke("dynamic-param")["/"].GET().then(v => v.map(v => v.at(0)))
+client.invoke("dynamic-para")["/"].GET()
 client.invoke.chat["/"].ws.handle.newMessage(ctx => {ctx.message.body.text2})

@@ -1,6 +1,8 @@
 import type { KeyOfOnlyStringKeys, URecord } from "@blazyts/better-standard-library";
 import type z from "zod/v4";
 
+import type { NarrowTypedRecord } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
+
 export type WebSocketMessage = {
   type: string;
   body: URecord;
@@ -29,22 +31,39 @@ export type WebSocketContext = {
   sendTo: (connectionId: string, message: WebSocketResponse) => void;
 };
 
-export type WebSocketHandlerCtx<TBody, TParams extends URecord> = {
-  message: {
-    body: TBody;
-    params: TParams;
-  };
-  ws: WebSocket;
+type MessageContract = Record<string, Message<any, z.ZodObject, any>>;
+
+export type WebSocketMessenger<TMessages extends MessageContract = MessageContract> = WebSocket & {
+  message: <TType extends KeyOfOnlyStringKeys<TMessages>>(
+    type: TType,
+    body: z.infer<TMessages[TType]["schema"]>,
+  ) => void;
 };
 
-export class Message<TParams extends URecord, TSchema extends z.ZodObject> {
+export type WebSocketHandlerCtx<
+  TBody,
+  TParams extends object,
+  TMessagesItCanSend extends MessageContract = MessageContract,
+> = {
+  message: {
+    body: NarrowTypedRecord<TBody & object>;
+    params: NarrowTypedRecord<TParams>;
+  };
+  ws: WebSocketMessenger<TMessagesItCanSend>;
+};
+
+export class Message<
+  TParams extends object,
+  TSchema extends z.ZodObject,
+  TMessagesItCanSend extends MessageContract = MessageContract,
+> {
   constructor(
     public readonly schema: TSchema,
-    public readonly handler: (ctx: WebSocketHandlerCtx<z.infer<TSchema>, TParams>) => void,
+    public readonly handler: (ctx: WebSocketHandlerCtx<z.infer<TSchema>, TParams, TMessagesItCanSend>) => void,
   ) { }
 }
 
-export type Schema<TCtx extends { params: URecord} = { params: URecord }> = {
+export type Schema<TCtx extends { params: object } = { params: any }> = {
   messagesItCanSend: Record<string, Message<TCtx["params"], z.ZodObject>>;
   messagesItCanRecieve: Record<string, Message<TCtx["params"], z.ZodObject>>;
 };
@@ -55,7 +74,7 @@ export type WeboscketRouteCleintRepresentation<TServerMessagesSchema extends Sch
   };
   send: {
     [Message in KeyOfOnlyStringKeys<TServerMessagesSchema["messagesItCanRecieve"]>]: (
-      body: (Parameters<TServerMessagesSchema["messagesItCanRecieve"][Message]["handler"]>[0])["message"]["body"],
+      body: z.infer<TServerMessagesSchema["messagesItCanRecieve"][Message]["schema"]>,
     ) => void
   };
 };

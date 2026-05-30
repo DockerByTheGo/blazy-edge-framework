@@ -1,9 +1,7 @@
-import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import z from "zod/v4";
 
 import { BlazyConstructor } from "src/app/constructors";
-import { treeRouteFinder } from "src/route/finders";
 import { Message } from "src/route/handlers/variations/websocket/types";
 
 import { getProtocols } from "../utils/routeTree";
@@ -54,9 +52,7 @@ describe("ws()", () => {
       },
     });
 
-    const protocols = treeRouteFinder(app.routes, new Path("/rooms/123"))
-      .expect("Expected dynamic ws route to be found")
-      .valueOf() as any;
+    const protocols = getProtocols(app.routes, "/rooms/:roomId");
 
     expect(protocols.ws).toBeDefined();
     expect(protocols.ws.metadata.subRoute).toBe("/rooms/:roomId");
@@ -70,7 +66,7 @@ describe("ws()", () => {
           "join-room": new Message(
             z.object({ roomId: z.string() }),
             ({ message }) => {
-              expectTypeOf(message.body).toEqualTypeOf<{ roomId: string }>();
+              expectTypeOf(message.body.get("roomId")).toEqualTypeOf<string>();
             },
           ),
         },
@@ -89,9 +85,24 @@ describe("ws()", () => {
       .parameters
       .toEqualTypeOf<[{ roomId: string }]>();
 
+    type ExpectedRoomJoinedHandler = (ctx: {
+      message: {
+        body: {
+          get: <K extends "roomId" | "members">(v: K) => {
+            roomId: string;
+            members: number;
+          }[K];
+        };
+        params: {
+          raw: () => Record<string, unknown>;
+        };
+      };
+      ws: WebSocket;
+    }) => void;
+
     expectTypeOf(client.invoke.rooms["/"].ws.handle["room-joined"])
       .parameters
-      .toEqualTypeOf<[(ctx: { message: { body: { roomId: string; members: number }; params: Record<string, unknown> }; ws: WebSocket }) => void]>();
+      .toMatchObjectType<[ExpectedRoomJoinedHandler]>();
   });
 
   it("contextually types inline message handlers from their schema", () => {
@@ -103,7 +114,8 @@ describe("ws()", () => {
             schema: z.object({ id: z.string(), count: z.number() }),
             handler: ({ message }) => {
               expectTypeOf(message.body).not.toBeAny();
-              expectTypeOf(message.body).toEqualTypeOf<{ id: string; count: number }>();
+              expectTypeOf(message.body.get("id")).toEqualTypeOf<string>();
+              expectTypeOf(message.body.get("count")).toEqualTypeOf<number>();
             },
           },
         },

@@ -1,8 +1,11 @@
 import type { IMapable } from "@blazyts/better-standard-library";
-
 import { describe, expectTypeOf, it } from "vitest";
-
+import z from "zod/v4";
+import { BlazyConstructor } from "src/app/constructors";
 import { Client } from "src/client/Client";
+import { TypedRecord } from "src/route/handlers";
+import type { IResponseObject, IWHATWG, NarrowTypedRecord, TransformResponseUnionToObject } from "src/route/handlers/variations/http/types";
+import { Message } from "src/route/handlers/variations/websocket/types";
 
 import { makeMockHandler, makeNonFunctionRepresentationHandler, protocolLeaf } from "./clientTestHelpers";
 
@@ -60,6 +63,50 @@ describe("client types", () => {
     expectTypeOf(client.invoke.a.b.c["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ y: number }>>>();
   });
 
+  it("dynamic route segments are addressed by string values", () => {
+    const handler = makeMockHandler<{ qty: number }, { id: string }>("/users/:id/orders", { id: "order-1" });
+    const tree = { users: { ":id": { orders: protocolLeaf("POST", handler) } } };
+    const client = new Client(tree, "http://localhost:3000");
+
+    expectTypeOf(client.invoke.users).parameters.toEqualTypeOf<[param: string]>();
+    expectTypeOf(client.invoke.users("u_123").orders["/"].POST).parameters.toEqualTypeOf<[{ qty: number }]>();
+    expectTypeOf(client.invoke.users("u_123").orders["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ id: string }>>>();
+  });
+
+  it("preserves static route types beside dynamic route segments", () => {
+    const dynamicHandler = makeMockHandler<{ qty: number }, { id: string }>("/users/:id/orders", { id: "order-1" });
+    const staticHandler = makeMockHandler<undefined, { id: "me" }>("/users/me", { id: "me" });
+    const tree = {
+      users: {
+        me: protocolLeaf("GET", staticHandler),
+        ":id": { orders: protocolLeaf("POST", dynamicHandler) },
+      },
+    };
+    const client = new Client(tree, "http://localhost:3000");
+
+    expectTypeOf(client.invoke.users.me["/"].GET).parameters.toEqualTypeOf<[undefined]>();
+    expectTypeOf(client.invoke.users.me["/"].GET).returns.toEqualTypeOf<Promise<IMapable<{ id: "me" }>>>();
+    expectTypeOf(client.invoke.users("u_123").orders["/"].POST).parameters.toEqualTypeOf<[{ qty: number }]>();
+    expectTypeOf(client.invoke.users("u_123").orders["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{ id: string }>>>();
+  });
+
+  it("app clients use string values for dynamic route segments", () => {
+    const app = BlazyConstructor
+      .createEmpty()
+      .get({
+        path: "/users/:id",
+        handler: ctx => ({ body: { id: ctx.request.params.get("id") } }),
+      });
+    const client = app.createClient().createClient()("http://localhost:3000");
+
+    expectTypeOf(client.invoke.users("u_123")["/"].GET).parameters.toEqualTypeOf<[v?: {} | undefined]>();
+    expectTypeOf(client.invoke.users("u_123")["/"].GET).returns.toEqualTypeOf<Promise<IMapable<{
+      body: NarrowTypedRecord<{ id: string }>;
+    } & IWHATWG<Response> & IResponseObject<TransformResponseUnionToObject<{
+      body: { id: string };
+    }>>>>>();
+  });
+
   it("client.invoke itself is not any", () => {
     const handler = makeMockHandler<{ v: boolean }, { v: boolean }>("/flag", { v: true });
     const tree = { flag: protocolLeaf("POST", handler) };
@@ -82,6 +129,49 @@ describe("client types", () => {
     }]>();
   });
 
+  it("HTTP verb clients expose only the request body as their argument", () => {
+    const app = BlazyConstructor
+      .createEmpty()
+      .post({
+        path: "/products",
+        handler: ctx => ({ body: { created: ctx.request.body.get("name") } }),
+        args: z.object({ name: z.string() }),
+      });
+    const client = app.createClient().createClient()("http://localhost:3000");
+
+    expectTypeOf(client.invoke.products["/"].POST).parameters.toEqualTypeOf<[{ name: string }]>();
+    expectTypeOf(client.invoke.products["/"].POST).returns.toEqualTypeOf<Promise<IMapable<{
+      body: NarrowTypedRecord<{ created: string }>;
+    } & IWHATWG<Response> & IResponseObject<TransformResponseUnionToObject<{
+      body: { created: string };
+    }>>>>>();
+  });
+
+  it("transforms response unions into status handler schemas", () => {
+    type ResponseUnion =
+      | { status: 200; body: { ok: true } }
+      | { status: 404; body: { message: string } };
+
+    expectTypeOf<TransformResponseUnionToObject<ResponseUnion>>().toEqualTypeOf<{
+      statuses: {
+        200: {
+          status: 200;
+          body: { ok: true };
+        };
+        404: {
+          status: 404;
+          body: { message: string };
+        };
+      };
+    }>();
+
+    type ResponseClient = IResponseObject<TransformResponseUnionToObject<ResponseUnion>>;
+    expectTypeOf<ResponseClient["handle"]>().parameters.toEqualTypeOf<[Partial<{
+      200: (response: { status: 200; body: { ok: true } }) => unknown;
+      404: (response: { status: 404; body: { message: string } }) => unknown;
+    }>]>();
+  });
+
   it("wraps awaited handler return types in IMapable", () => {
     type HandlerReturn = Promise<{ ok: true; payload: { count: number } }>;
 
@@ -97,7 +187,7 @@ describe("client types", () => {
     >();
   });
 
-  it("keeps non-function client representations typed as-is", () => {
+  it("maps nested client representation functions while preserving their args and returns", () => {
     const representation = {
       open: (headers: { token: string }) => ({ connected: true as const, headers }),
       close: () => ({ closed: true as const }),
@@ -106,8 +196,70 @@ describe("client types", () => {
     const tree = { stream: protocolLeaf("ws", handler) };
     const client = new Client(tree, "http://localhost:3000");
 
-    expectTypeOf(client.invoke.stream["/"].ws).toEqualTypeOf<typeof representation>();
     expectTypeOf(client.invoke.stream["/"].ws.open).parameters.toEqualTypeOf<[{ token: string }]>();
-    expectTypeOf(client.invoke.stream["/"].ws.close).returns.toEqualTypeOf<{ closed: true }>();
+    expectTypeOf(client.invoke.stream["/"].ws.open).returns.toEqualTypeOf<Promise<IMapable<{
+      connected: true;
+      headers: { token: string };
+    }>>>();
+    expectTypeOf(client.invoke.stream["/"].ws.close).returns.toEqualTypeOf<Promise<IMapable<{ closed: true }>>>();
+  });
+
+  it("preserves websocket message schema types through the app client", () => {
+    const app = BlazyConstructor.createEmpty().ws({
+      path: "/rooms",
+      messages: {
+        messagesItCanRecieve: {
+          join: new Message(z.object({ roomId: z.string(), members: z.number() }), () => {}),
+        },
+        messagesItCanSend: {
+          joined: new Message(z.object({ roomId: z.string() }), () => {}),
+        },
+      },
+    });
+
+    const client = app.createClient().createClient()("http://localhost:3000");
+
+    expectTypeOf(client.invoke.rooms["/"].ws.send.join).parameters.toEqualTypeOf<[{
+      roomId: string;
+      members: number;
+    }]>();
+    expectTypeOf(client.invoke.rooms["/"].ws.send.join).returns.toEqualTypeOf<Promise<IMapable<void>>>();
+
+    expectTypeOf(client.invoke.rooms["/"].ws.handle.joined).parameters.toMatchTypeOf<[
+      (ctx: {
+        message: {
+          body: TypedRecord<{ roomId: string }>;
+        };
+      }) => void,
+    ]>();
+  });
+
+  it("preserves websocket message schema types through dynamic route params", () => {
+    const app = BlazyConstructor.createEmpty().ws({
+      path: "/rooms/:roomId",
+      messages: {
+        messagesItCanRecieve: {
+          join: new Message(z.object({ userId: z.string() }), () => {}),
+        },
+        messagesItCanSend: {
+          joined: new Message(z.object({ userId: z.string() }), () => {}),
+        },
+      },
+    });
+
+    const client = app.createClient().createClient()("http://localhost:3000");
+
+    expectTypeOf(client.invoke.rooms("room-1")["/"].ws.send.join).parameters.toEqualTypeOf<[{
+      userId: string;
+    }]>();
+    expectTypeOf(client.invoke.rooms("room-1")["/"].ws.send.join).returns.toEqualTypeOf<Promise<IMapable<void>>>();
+
+    expectTypeOf(client.invoke.rooms("room-1")["/"].ws.handle.joined).parameters.toMatchTypeOf<[
+      (ctx: {
+        message: {
+          body: TypedRecord<{ userId: string }>;
+        };
+      }) => void,
+    ]>();
   });
 });

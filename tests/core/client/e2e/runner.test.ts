@@ -27,7 +27,7 @@ describe("e2e simple app", () => {
               "join-room": {
                 schema: z.object({ roomId: z.string() }),
                 handler: ({ message, ws }) => {
-                  console.log("User wants to join room", message.body.roomId);
+                  console.log("User wants to join room", message.body.get("roomId"));
                 },
               },
             },

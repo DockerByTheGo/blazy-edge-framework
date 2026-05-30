@@ -1,4 +1,3 @@
-type ResponseBody = BodyInit | null;
 
 type ValidationIssue = {
   path: (string | number)[];

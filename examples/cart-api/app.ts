@@ -5,16 +5,32 @@ import z from "zod/v4";
 const cartService = {
     config: {},
     getAll: () => ["cart 1", "cart 2", "cart 3"]
-};
-const server = BlazyConstructor
+}
+
+export const app = BlazyConstructor
     .createProd()
     .addService("cartService", cartService)
     .get(
         {
-            path: "/:hi",
+            path: "/:hi/:koko/lolo/:po",
             handler: v => {
                 console.log(v.request)
-                return{ ji: v.request.params.hi }},
+                const random = Math.random()
+                console.log("random",random)
+                if (random > 0.5) {
+
+                    return {
+                        hi: v.request.params.get("hi"),
+                        ko: v.request.params.get("koko"),
+                        po: v.request.params.get("po")
+                    }
+                } else if (random > 0.25) {
+                    return null
+                } else {
+                    return undefined
+                }
+
+            },
         }
     )
     .ws({
@@ -24,15 +40,15 @@ const server = BlazyConstructor
                 "new-message": new Message(
                     z.object({ content: z.string() }),
                     ctx => {
-                        console.log("Sending message to room", ctx, "with content:", ctx.message.body.content);
+                        console.log("Sending message to room", ctx, "with content:", ctx.message.body.get("content"));
                     }
                 )
             },
             messagesItCanRecieve: {
                 "new-message": new Message(
                     z.object({ content: z.string() }),
-                    ctx => {
-                        console.log("Received message for room", ctx, "with content:", ctx.message.body.content);
+                    async ctx => {
+                        await ctx.ws.message("new-message", { content: "jkhfwbhksbjhd" })
                     }
                 )
             },
@@ -41,16 +57,11 @@ const server = BlazyConstructor
     .rpc({
         name: "getCart",
         handler: ctx => {
-            console.log(ctx.request.body)
+            console.log(ctx.request.body.get("id"))
 
-            return { body: cartService.getAll() };
+            return { items: cartService.getAll() };
         },
         args: z.object({
             id: z.string(),
         })
     })
-
-server.listen(3005)
-// const client =     server.createClient().createClient()("")
-
-

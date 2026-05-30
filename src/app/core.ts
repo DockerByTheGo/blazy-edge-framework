@@ -12,11 +12,10 @@ import type { HttpVerbHandlerCtx } from "src/route/handlers";
 import type { Schema, WebSocketMessage } from "src/route/handlers/variations/websocket/types";
 import type { ExtractParams } from "src/route/matchers/dsl/types/extractParams";
 
-import { FailedValidationResponse, HtmlFileResponse, HtmlResponse, JsonResponse } from "src/response";
 import { HttpVerbHandler } from "src/route/handlers";
-import { createHttpVerbHandlerCtx, getHttpValidationTarget } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
 import { FileRouteHandler } from "src/route/handlers/variations/file/File";
 import { normalizeFileRoute } from "src/route/handlers/variations/file/utils";
+import { createHttpVerbHandlerCtx, getHttpValidationTarget, TypedRecord } from "src/route/handlers/variations/http/HttpVerbRouteHandler";
 import { WebsocketRouteHandler } from "src/route/handlers/variations/websocket";
 import { DSLRouting } from "src/route/matchers/dsl/main";
 import { NormalRouting } from "src/route/matchers/normal";
@@ -29,6 +28,7 @@ import type { HandlerProtocol } from "../types";
 import { CleintBuilderConstructors } from "../client/client-builder/clientBuilder";
 import { treeRouteFinder } from "../route/finders";
 import type { ZodObject } from "zod/v4";
+import { FailedValidationResponse } from "src/route/handlers/variations/http/responses";
 
 const FILE_SAVER_SERVICE_NAME = "fileSaver";
 const CACHE_SERVICE_NAME = "cache";
@@ -380,8 +380,7 @@ export class Blazy<
 
   http<
     TPath extends string,
-    Thandler extends (arg: Args extends null ? URecord : Args,
-    ) => unknown,
+    Thandler extends (arg: any) => unknown,
     TProtocol extends HandlerProtocol,
     Args extends z.ZodObject | null = null,
   >(v: {
@@ -449,7 +448,7 @@ export class Blazy<
           ...ctx,
           request: {
             ...ctx.request,
-            body: res.data,
+            body: new TypedRecord(res.data),
           },
         } as HandlerArg) as ReturnType<Thandler>;
       }
@@ -472,19 +471,16 @@ export class Blazy<
   post<
     TPath extends string,
     TArgs extends z.ZodObject | undefined = undefined,
-    THandler extends Handler<
-      HttpVerbHandlerCtx<
-        TDCtx,
-        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
-        ExtractParams<TPath>
-      >
-    > = Handler<
-      HttpVerbHandlerCtx<
-        TDCtx,
-        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
-        ExtractParams<TPath>
-      >
+    TContext extends HttpVerbHandlerCtx<
+      TDCtx,
+      TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+      ExtractParams<TPath>
+    > = HttpVerbHandlerCtx<
+      TDCtx,
+      TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
+      ExtractParams<TPath>
     >,
+    THandler extends (ctx: TContext) => any = (ctx: TContext) => any,
   >(config: {
     path: TPath;
     handler: THandler;
@@ -496,7 +492,7 @@ export class Blazy<
     & PathStringToObject<
       TPath,
       HttpVerbHandler<
-        Parameters<THandler>[0],
+        TContext,
         ReturnType<THandler>
       >,
       "POST"
@@ -504,7 +500,7 @@ export class Blazy<
     THooks
   > {
     // (this.services.services.cache as CacheService).registerHandler(`POST:${config.path}`, new NormalRouteHandler(config.handeler, { subRoute: config.path, verb: "POST", protocol: "POST" }))
-    return this.http<TPath, THandler, any, "POST">({
+    return this.http<TPath, THandler, "POST", TArgs extends undefined ? null : NonNullable<TArgs>>({
       path: config.path,
       handler: v => config.handler(v),
       args: config.args,
@@ -539,26 +535,22 @@ export class Blazy<
     });
   }
 
+  // if status isnt mentioned explicitely it is granted that its 201, if its null its 404, if undefined its 204, if an error is thrown it returns 500 and logs error intearnally 
   get<
     TPath extends string,
-    TArgs extends z.ZodObject | undefined = undefined,
-    THandler extends Handler<
-      HttpVerbHandlerCtx<
-        TDCtx,
-        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
-        ExtractParams<TPath>
-      >
-    > = Handler<
-      HttpVerbHandlerCtx<
-        TDCtx,
-        TArgs extends undefined ? URecord : z.infer<NonNullable<TArgs>>,
-        ExtractParams<TPath>
-      >
+    TContext extends HttpVerbHandlerCtx<
+      {},
+      {},
+      ExtractParams<TPath>
+    > = HttpVerbHandlerCtx<
+      {},
+      {},
+      ExtractParams<TPath>
     >,
+    THandler extends (ctx: TContext) => any = (ctx: TContext) => {status: number, body: unknown} | URecord | null | undefined,
   >(config: {
     path: TPath;
     handler: THandler;
-    args?: TArgs;
     cache?: any;
   },
   ): Blazy<
@@ -566,18 +558,17 @@ export class Blazy<
     & PathStringToObject<
       TPath,
       HttpVerbHandler<
-        Parameters<THandler>[0],
+        TContext,
         ReturnType<THandler>
       >,
       "GET"
     >,
     THooks
   > {
-    return this.http<TPath, THandler, any, "GET">({
+    return this.http<TPath, THandler, "GET">({
       path: config.path,
       // handler: v => v.path === "GET" ? config.handler(v) : this.notFound(),
       handler: config.handler,
-      args: config.args,
       meta: { verb: "GET", protocol: "GET" as const },
       cache: config.cache,
     });
