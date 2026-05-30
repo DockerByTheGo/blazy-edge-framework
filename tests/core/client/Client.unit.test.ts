@@ -129,10 +129,43 @@ describe("client", () => {
       expect(result.raw.body.get("created")).toBe("Ada");
       expect(result.raw.body.raw()).toEqual({ created: "Ada" });
       expect(result.raw.whatwg()).toBeInstanceOf(Response);
-      expect(result.raw.whatwg().status).toBe(200);
+      expect(result.raw.whatwg().status).toBe(201);
       expect(result.raw.handle({
-        200: response => (response as { body: { created: string } }).body.created,
+        201: response => (response as { body: { created: string } }).body.created,
       })).toBe("Ada");
+    }
+    finally {
+      server.stop?.();
+    }
+  });
+
+  it("keeps HTTP response helpers when the response body is null", async () => {
+    const app = BlazyConstructor
+      .createProd()
+      .get({
+        path: "/empty",
+        handler: () => null,
+      })
+      .get({
+        path: "/missing",
+        handler: () => undefined,
+      });
+
+    const server = app.listen(0);
+    const client = app.createClient().createClient()(`http://localhost:${server.port}`);
+
+    try {
+      const empty = await client.invoke.empty["/"].GET();
+      expect(empty.raw.whatwg().status).toBe(204);
+      expect(empty.raw.handle({
+        204: response => response,
+      })).toBeNull();
+
+      const missing = await client.invoke.missing["/"].GET();
+      expect(missing.raw.whatwg().status).toBe(404);
+      expect(missing.raw.handle({
+        404: response => response,
+      })).toBeNull();
     }
     finally {
       server.stop?.();

@@ -4,15 +4,42 @@ import { HttpVerbHandler } from "src/route/handlers";
 import type { HttpVerbHandlerCtx, IWHATWG, NarrowTypedRecord } from "src/route/handlers/variations/http/types";
 
 describe("HttpVerbHandler", () => {
-  it("handleRequest delegates to the handler function", () => {
+  it("handleRequest returns 201 JSON for object handler returns", async () => {
     const handler = new HttpVerbHandler(
       (ctx: any) => ({ body: { path: ctx.request.path } }),
       { subRoute: "/health", method: "POST" },
     );
 
-    expect(handler.handleRequest({
+    const response = handler.handleRequest({
       request: { path: "/health" },
-    } as any)).toEqual({ body: { path: "/health" } });
+    } as any);
+
+    expect(response).toBeInstanceOf(Response);
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({ body: { path: "/health" } });
+  });
+
+  it("handleRequest maps null, undefined, explicit statuses, and errors", async () => {
+    const nullHandler = new HttpVerbHandler(() => null, { subRoute: "/empty", method: "POST" });
+    const undefinedHandler = new HttpVerbHandler(() => undefined, { subRoute: "/missing", method: "POST" });
+    const explicitHandler = new HttpVerbHandler(() => ({ status: 202, body: { queued: true } }), { subRoute: "/queued", method: "POST" });
+    const errorHandler = new HttpVerbHandler(() => {
+      throw new Error("boom");
+    }, { subRoute: "/errored", method: "POST" });
+
+    expect(nullHandler.handleRequest({} as any).status).toBe(204);
+
+    const notFound = undefinedHandler.handleRequest({} as any);
+    expect(notFound.status).toBe(404);
+    await expect(notFound.json()).resolves.toBeNull();
+
+    const explicit = explicitHandler.handleRequest({} as any);
+    expect(explicit.status).toBe(202);
+    await expect(explicit.json()).resolves.toEqual({ queued: true });
+
+    const errored = errorHandler.handleRequest({} as any);
+    expect(errored.status).toBe(500);
+    await expect(errored.json()).resolves.toEqual({ message: "boom" });
   });
 
   it("handleRequest narrows request body, params, and response data types", () => {
@@ -43,9 +70,7 @@ describe("HttpVerbHandler", () => {
     );
 
     expectTypeOf(handler.handleRequest).parameters.toEqualTypeOf<[Ctx]>();
-    expectTypeOf(handler.handleRequest).returns.toEqualTypeOf<{
-      body: { created: string; productId: string };
-    }>();
+    expectTypeOf(handler.handleRequest).returns.toEqualTypeOf<Response>();
   });
 
   it("getClientRepresentation returns a callable client with route metadata", () => {

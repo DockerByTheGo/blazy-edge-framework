@@ -2,8 +2,6 @@ import { app } from "./app"
 
 export const client = app.createClient().createClient()("http://localhost:3005")
 
-const r = client.routeTree[":hi"][":koko"].lolo[":po"]["/"].GET.getClientRepresentation()
-
 client.invoke.ws("room-1")["/"].ws.handle["new-message"](v => {
     console.log("recieved message 1234", v.message.body.get("content"))
 })
@@ -28,8 +26,4 @@ console.log(res2
         "204": v => console.log("server returned 204"),
         "404": v => console.log("server returned 404"),
     })
-    
-    
-    // .map(v => v.handle({}))
-
 )

@@ -15,16 +15,18 @@ export const app = BlazyConstructor
             path: "/:hi/:koko/lolo/:po",
             handler: v => {
                 console.log(v.request)
-                if (Math.random()) {
+                const random = Math.random()
+                console.log("random",random)
+                if (random > 0.5) {
 
                     return {
                         hi: v.request.params.get("hi"),
                         ko: v.request.params.get("koko"),
                         po: v.request.params.get("po")
                     }
-                } else if (Math) {
+                } else if (random > 0.25) {
                     return null
-                } else if (Math) {
+                } else {
                     return undefined
                 }
 

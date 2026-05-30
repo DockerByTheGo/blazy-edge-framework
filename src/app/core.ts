@@ -12,7 +12,6 @@ import type { HttpVerbHandlerCtx } from "src/route/handlers";
 import type { Schema, WebSocketMessage } from "src/route/handlers/variations/websocket/types";
 import type { ExtractParams } from "src/route/matchers/dsl/types/extractParams";
 
-import { FailedValidationResponse, HtmlFileResponse, HtmlResponse, JsonResponse } from "src/response";
 import { HttpVerbHandler } from "src/route/handlers";
 import { FileRouteHandler } from "src/route/handlers/variations/file/File";
 import { normalizeFileRoute } from "src/route/handlers/variations/file/utils";
@@ -29,6 +28,7 @@ import type { HandlerProtocol } from "../types";
 import { CleintBuilderConstructors } from "../client/client-builder/clientBuilder";
 import { treeRouteFinder } from "../route/finders";
 import type { ZodObject } from "zod/v4";
+import { FailedValidationResponse } from "src/route/handlers/variations/http/responses";
 
 const FILE_SAVER_SERVICE_NAME = "fileSaver";
 const CACHE_SERVICE_NAME = "cache";

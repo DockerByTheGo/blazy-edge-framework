@@ -2,10 +2,10 @@ import type { URecord } from "@blazyts/better-standard-library";
 
 import { TypedRecord } from "@blazyts/better-standard-library";
 
-import { HtmlResponse, JsonResponse, TextResponse } from "src/response";
 
 import type { HttpVerbClientResponse, HttpVerbHandlerCtx, QueryParams, RestRequestCtx, TypedRecordShape, TypedResponseBody } from "../types";
 import type { RawRequestData } from "./types";
+import { HtmlResponse, JsonResponse, TextResponse } from "../responses";
 
 type ResponseBody = ConstructorParameters<typeof Response>[0];
 
@@ -123,17 +123,18 @@ function attachWhatwgResponse<TValue>(
   response?: Response,
   parsedResponse: unknown = value,
 ): TValue {
+  const target = value === null ? {} : value;
+
   if (
     response
-    && value !== null
-    && (typeof value === "object" || typeof value === "function")
+    && (typeof target === "object" || typeof target === "function")
   ) {
-    Object.defineProperty(value, "whatwg", {
+    Object.defineProperty(target, "whatwg", {
       configurable: true,
       enumerable: false,
       value: () => response,
     });
-    Object.defineProperty(value, "handle", {
+    Object.defineProperty(target, "handle", {
       configurable: true,
       enumerable: false,
       value: (handlers: Record<string | number, (response: unknown) => unknown>) => {
@@ -146,7 +147,7 @@ function attachWhatwgResponse<TValue>(
     });
   }
 
-  return value;
+  return target as TValue;
 }
 
 export function wrapResponseBodyInTypedRecord<TReturn>(

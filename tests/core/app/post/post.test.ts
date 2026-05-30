@@ -113,7 +113,7 @@ describe("post()", () => {
       handler: ctx => ({ body: { created: ctx.request.body.get("name") } }),
     });
 
-    await expect(app.route({
+    const response = await app.route({
       reqData: {
         url: "/users",
         protocol: "POST",
@@ -121,6 +121,10 @@ describe("post()", () => {
         body: { name: "Ada" },
         headers: {},
       },
-    })).resolves.toEqual({ body: { created: "Ada" } });
+    }) as Response;
+
+    expect(response).toBeInstanceOf(Response);
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({ body: { created: "Ada" } });
   });
 });
