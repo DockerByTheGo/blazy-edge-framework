@@ -68,10 +68,14 @@ export type HttpVerbClientMetadata = IRouteHandlerMetadata & Partial<{
   verb: string;
 }>;
 
+export type HttpVerbClientRequestOptions = {
+  headers?: HeadersInit;
+};
+
 export type ClientBody<TCtx> = TCtx extends { request: RestRequestCtx<infer TBody, any, any> } ? TBody : TCtx;
 export type ClientBodyArgs<TCtx> = {} extends ClientBody<TCtx>
-  ? [v?: ClientBody<TCtx>]
-  : [v: ClientBody<TCtx>];
+  ? [v?: ClientBody<TCtx>, options?: HttpVerbClientRequestOptions]
+  : [v: ClientBody<TCtx>, options?: HttpVerbClientRequestOptions];
 
 export type TypedResponseBody<TReturn> = Awaited<TReturn> extends { body: infer TBody }
   ? Omit<Awaited<TReturn>, "body"> & { body: NarrowTypedRecord<TypedRecordShape<TBody>> }

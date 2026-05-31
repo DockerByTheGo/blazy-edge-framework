@@ -172,4 +172,21 @@ describe("combineHooks", () => {
     const result = await combined.handler(10);
     expect(result).toBe(30); // (10 + 5) * 2
   });
+
+  it("should await an async hook before passing its result to a sync hook", async () => {
+    const hook1: Hook<"asyncAdd", (x: number) => Promise<number>> = {
+      name: "asyncAdd",
+      handler: async x => x + 5,
+    };
+
+    const hook2: Hook<"syncMultiply", (x: number) => number> = {
+      name: "syncMultiply",
+      handler: x => x * 2,
+    };
+
+    const combined = combineHooks(hook1, hook2);
+
+    const result = await combined.handler(10);
+    expect(result).toBe(30);
+  });
 });

@@ -1,7 +1,7 @@
+import { Hook } from "@blazyts/backend-lib";
 import { describe, expect, it, vi } from "vitest";
 
 import { HooksCombiner } from "src/utils/combine-hooks";
-import { Hook } from "@blazyts/backend-lib";
 
 describe("hooksCombiner", () => {
   describe("static new", () => {
@@ -226,6 +226,27 @@ describe("hooksCombiner", () => {
       const output = await result.handler(15);
 
       expect(output).toBe(50); // (15 * 2) + 20
+    });
+
+    it("should await an async hook before passing its result to a sync hook", async () => {
+      const hook1 = new Hook(
+        "asyncDouble",
+        async x => x * 2,
+      );
+
+      const hook2: Hook = new Hook(
+        "syncAdd",
+        x => x + 20,
+      );
+
+      const combiner = HooksCombiner.new("asyncThenSync")
+        .addHook(hook1)
+        .addHook(hook2);
+
+      const result = combiner.build();
+      const output = await result.handler(15);
+
+      expect(output).toBe(50);
     });
   });
 

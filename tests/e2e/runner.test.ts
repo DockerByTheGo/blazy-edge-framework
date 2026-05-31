@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { listenWithPortFallback } from "../helpers/ports";
 import { createE2eClient } from "./client";
@@ -34,6 +34,20 @@ describe("e2e app", () => {
         qty: 2,
       });
 
+      expectTypeOf(created.raw.response.body.raw()).toEqualTypeOf<{
+        orderId: string;
+        sku: string;
+        qty: number;
+        requestId: string;
+        path: string;
+        method: string;
+      }>();
+      expectTypeOf(created.raw.response.body.get("orderId")).toEqualTypeOf<string>();
+      expectTypeOf(created.raw.response.body.get("sku")).toEqualTypeOf<string>();
+      expectTypeOf(created.raw.response.body.get("qty")).toEqualTypeOf<number>();
+      expectTypeOf(created.raw.response.body.get("requestId")).toEqualTypeOf<string>();
+      expectTypeOf(created.raw.response.body.get("path")).toEqualTypeOf<string>();
+      expectTypeOf(created.raw.response.body.get("method")).toEqualTypeOf<string>();
       expect(created.raw.response.status).toBe(202);
       expect(created.raw.response.body.raw()).toEqual({
         orderId: "ord_123",
@@ -44,6 +58,14 @@ describe("e2e app", () => {
         method: "POST",
       });
       expect(created.raw.whatwg().status).toBe(202);
+
+      const typedHealth = await client.invoke.health["/"].GET();
+      expectTypeOf(typedHealth.raw.response.body.raw()).toEqualTypeOf<{
+        ok: boolean;
+        checks: string[];
+      }>();
+      expectTypeOf(typedHealth.raw.response.body.get("ok")).toEqualTypeOf<boolean>();
+      expectTypeOf(typedHealth.raw.response.body.get("checks")).toEqualTypeOf<string[]>();
 
       const health = await fetch(`http://localhost:${server.port}/health`);
       await expect(health.json()).resolves.toEqual({

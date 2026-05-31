@@ -22,6 +22,7 @@ import { NormalRouting } from "../route/matchers/normal";
 import { ServiceManager } from "../services/main";
 
 import type { ClientBuilder } from "../client/client-builder/clientBuilder";
+import type { ICacheService } from "../services/built-in/cache";
 import type { ServiceBase } from "../services/main/Service";
 import type { HandlerProtocol } from "../types";
 
@@ -50,6 +51,11 @@ type BlazyRequestData = {
   headers: Record<string, string>;
   body: unknown;
 };
+type RouteCacheConfig<TValue extends URecord> = {
+  key?: (value: TValue) => string;
+  ttl?: number;
+};
+type CacheLookup<TValue> = { hit: true; value: TValue } | { hit: false };
 
 type NotFoundReason = "route" | "method";
 type NotFoundContext = {
@@ -99,6 +105,24 @@ function createNotFoundContext(requestData: BlazyRequestData, reason: NotFoundRe
     reason,
     availableProtocols,
   };
+}
+
+function isPromiseLike<T>(value: unknown): value is PromiseLike<T> {
+  return Boolean(value && typeof (value as { then?: unknown }).then === "function");
+}
+
+function unpackCacheLookup<TValue>(result: unknown): CacheLookup<TValue> {
+  try {
+    const option = (result as { unpack: () => { isSome: () => boolean; unpack: () => { valueOf: () => TValue } } }).unpack();
+    if (option.isSome()) {
+      return { hit: true, value: option.unpack().valueOf() };
+    }
+  }
+  catch {
+    return { hit: false };
+  }
+
+  return { hit: false };
 }
 
 export class Blazy<
@@ -408,7 +432,7 @@ export class Blazy<
     handler: Thandler;
     args?: Args;
     meta?: URecord & { protocol?: TProtocol };
-    cache?: any;
+    cache?: RouteCacheConfig<Parameters<Thandler>[0] extends URecord ? Parameters<Thandler>[0] : URecord>;
   },
   ): Blazy<
     TRouterTree
@@ -425,8 +449,8 @@ export class Blazy<
   > {
     const metadata = { subRoute: v.path, ...v.meta };
     const protocol = (v.meta?.protocol as TProtocol) || ("http" as TProtocol);
-    const cacheService = this.services.getService<CacheService>(CACHE_SERVICE_NAME);
     type HandlerArg = Parameters<Thandler>[0] extends URecord ? Parameters<Thandler>[0] : URecord;
+    const cacheService = (this.services.services as Record<string, ICacheService<Awaited<ReturnType<Thandler>>> | undefined>)[CACHE_SERVICE_NAME];
     const cacheConfig = v.cache;
     const handlerId = `${protocol}:${metadata.subRoute}`;
     const shouldUseCache = Boolean(cacheService && cacheConfig && protocol !== "ws");
@@ -443,19 +467,48 @@ export class Blazy<
       }
     };
 
+    const buildCompositeCacheKey = (value: HandlerArg) => `${handlerId}:${buildCacheKey(value)}`;
+    const readCache = (key: string) => {
+      const result = cacheService?.getEntry(key);
+      if (isPromiseLike(result)) {
+        return result.then(unpackCacheLookup<Awaited<ReturnType<Thandler>>>);
+      }
+
+      return unpackCacheLookup<Awaited<ReturnType<Thandler>>>(result);
+    };
+    const saveCache = (key: string, value: Awaited<ReturnType<Thandler>>) => {
+      const result = cacheService?.setEntry(key, value, cacheConfig?.ttl);
+      if (isPromiseLike(result)) {
+        return result.then(() => value, () => value);
+      }
+
+      return value;
+    };
+    const runHandlerAndCache = (key: string, value: HandlerArg) => {
+      const result = v.handler(value);
+      if (isPromiseLike<Awaited<ReturnType<Thandler>>>(result)) {
+        return result.then(resolved => saveCache(key, resolved));
+      }
+
+      saveCache(key, result as Awaited<ReturnType<Thandler>>);
+      return result;
+    };
     const executeHandler = (value: HandlerArg) => {
       if (!shouldUseCache || !cacheService || !cacheConfig) {
         return v.handler(value);
       }
 
-      const key = buildCacheKey(value);
-      if (cacheService.hasEntry(handlerId, key)) {
-        return cacheService.getEntry(handlerId, key) as ReturnType<Thandler>;
+      const key = buildCompositeCacheKey(value);
+      const cached = readCache(key);
+      if (isPromiseLike(cached)) {
+        return cached.then(entry => entry.hit ? entry.value : runHandlerAndCache(key, value)) as ReturnType<Thandler>;
       }
 
-      const result = v.handler(value);
-      cacheService.setEntry(handlerId, key, result, cacheConfig.ttl);
-      return result;
+      if (cached.hit) {
+        return cached.value as ReturnType<Thandler>;
+      }
+
+      return runHandlerAndCache(key, value) as ReturnType<Thandler>;
     };
 
     const handlerFn = (arg: Parameters<Thandler>[0]) => {
@@ -477,10 +530,6 @@ export class Blazy<
     };
 
     const finalHandler = new HttpVerbHandler(handlerFn, metadata);
-    if (shouldUseCache && cacheService) {
-      cacheService.registerHandler(handlerId, finalHandler);
-    }
-
     return this.addRoute({
       routeMatcher: new DSLRouting(v.path),
       protocol,

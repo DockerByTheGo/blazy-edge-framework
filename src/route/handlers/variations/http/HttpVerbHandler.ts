@@ -1,6 +1,6 @@
 import type { IRouteHandler } from "@blazyts/backend-lib";
 import type { URecord } from "@blazyts/better-standard-library";
-import { fetch } from "bun";
+import { fetch, type HeadersInit } from "bun";
 import type { ClientBodyArgs, HttpVerbClientMetadata, HttpVerbHandlerMetadata, NormalRouteHandlerClientRepresentation } from "./types";
 import { wrapResponseBodyInTypedRecord } from "./utils";
 import { JsonResponse } from "./responses";
@@ -54,6 +54,16 @@ async function readJsonResponse<TReturn>(response: Response): Promise<TReturn> {
   return JSON.parse(text) as TReturn;
 }
 
+function createClientHeaders(canHaveBody: boolean, headers?: HeadersInit): Headers {
+  const nextHeaders = new Headers(headers);
+
+  if (canHaveBody && !nextHeaders.has("content-type")) {
+    nextHeaders.set("content-type", "application/json");
+  }
+
+  return nextHeaders;
+}
+
 export class HttpVerbHandler<
   TCtx = URecord,
   TReturn = unknown,
@@ -99,12 +109,13 @@ export class HttpVerbHandler<
 
     const clientFn = (async (...args: ClientBodyArgs<TCtx>) => {
       const body = args[0];
+      const options = args[1];
       const method = metadata.verb?.toUpperCase() ?? metadata.protocol?.toUpperCase() ?? "GET";
       const canHaveBody = !["GET", "HEAD"].includes(method);
 
       const nativeResponse = await fetch(metadata.serverUrl, {
         method,
-        headers: canHaveBody ? { "content-type": "application/json" } : undefined,
+        headers: createClientHeaders(canHaveBody, options?.headers),
         body: canHaveBody ? JSON.stringify(body ?? {}) : undefined,
       });
       const response = await readJsonResponse<TReturn>(nativeResponse);
