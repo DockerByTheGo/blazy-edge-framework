@@ -1,15 +1,12 @@
 import type { IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server";
-
 import type { TypedRecord, UnionToIntersection } from "@blazyts/better-standard-library";
-
 export type QueryValue = string | string[];
 export type QueryParams = Record<string, QueryValue>;
 import type { And, URecord } from "@blazyts/better-standard-library";
 import type { IWHATWG } from "../../../../../types";
-
+import type { HeadersInit } from "bun";
 
 type ResponseBody = ConstructorParameters<typeof Response>[0];
-
 
 export type TypedRecordShape<T> = T extends URecord
   ? T

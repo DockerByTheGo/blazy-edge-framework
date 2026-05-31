@@ -577,7 +577,7 @@ export class Blazy<
   >(v: {
     name: TName;
     handler: (
-      arg: HttpVerbHandlerCtx<{}, TArgs extends undefined ? {} : z.infer<TArgs>, {}, {}>
+      arg: HttpVerbHandlerCtx<TDCtx, TArgs extends undefined ? {} : z.infer<TArgs>, {}, {}>
     )
       => THandlerReturn;
     args?: TArgs;
