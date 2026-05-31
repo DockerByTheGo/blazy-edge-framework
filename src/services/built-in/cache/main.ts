@@ -22,3 +22,5 @@ export type ICacheService<TValue = unknown> = {
   saveEntry: (key: string, value: TValue, ttl?: number) => MaybePromise<CacheResult<void>>;
   setEntry: (key: string, value: TValue, ttl?: number) => MaybePromise<CacheResult<void>>;
 };
+
+export type ICache<TValue = unknown> = ICacheService<TValue>;
