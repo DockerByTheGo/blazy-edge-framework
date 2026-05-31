@@ -51,17 +51,3 @@ export function servicify<T extends ServiceDefault>(service: T): Service<T> {
     config: service.config,
   };
 }
-
-class FileSavingService<TConfig extends { basePath: string; maxFileSize: number }> {
-  constructor(public config: TConfig) { }
-  uploadFile(args: { file: File }): string {
-    // implementation to save the file to disk or cloud storage
-    return "file-id";
-  }
-}
-
-type k = Service<FileSavingService<{ basePath: string; maxFileSize: number }>>;
-
-// const k: k = null
-
-// k.config.basePath

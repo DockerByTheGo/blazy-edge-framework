@@ -4,11 +4,11 @@
   "private": true,
   "module": "index.ts",
   "scripts": {
-    "lint": "bun --bun eslint src tests",
     "build": "bunx tsc -p tsconfig.json --noEmit",
-    "test": "bun --bun x vitest run --config vitest.config.ts",
-    "coverage": "bun test --coverage", 
-    "bun:test": "bun test"
+    "lint": "bun --bun eslint src tests",
+    "node:test": "bun x --bun vitest run --config vitest.config.ts",
+    "bun:test": "bun test",
+    "coverage": "bun test --coverage"
   },
   "peerDependencies": {
     "typescript": "^5"

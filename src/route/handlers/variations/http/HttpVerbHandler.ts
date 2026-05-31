@@ -1,6 +1,6 @@
 import type { IRouteHandler } from "@blazyts/backend-lib";
 import type { URecord } from "@blazyts/better-standard-library";
-import { fetch } from "bun";
+import { fetch, type HeadersInit } from "bun";
 import type { ClientBodyArgs, HttpVerbClientMetadata, HttpVerbHandlerMetadata, NormalRouteHandlerClientRepresentation } from "./types";
 import { wrapResponseBodyInTypedRecord } from "./utils";
 import { JsonResponse } from "./responses";
@@ -18,6 +18,29 @@ function isExplicitStatusResponse(value: unknown): value is ExplicitStatusRespon
     && "body" in value;
 }
 
+function toResponse(value: unknown): Response {
+  if (value instanceof Response) {
+    return value;
+  }
+
+  if (value === null) {
+    return new Response(null, { status: 204 });
+  }
+
+  if (value === undefined) {
+    return JsonResponse(null, { status: 404 });
+  }
+
+  if (isExplicitStatusResponse(value)) {
+    if (value.status === 204 || value.body === null || value.body === undefined) {
+      return new Response(null, { status: value.status });
+    }
+    return JsonResponse(value.body, { status: value.status });
+  }
+
+  return JsonResponse(value, { status: 201 });
+}
+
 async function readJsonResponse<TReturn>(response: Response): Promise<TReturn> {
   if (response.status === 204) {
     return null as TReturn;
@@ -29,6 +52,16 @@ async function readJsonResponse<TReturn>(response: Response): Promise<TReturn> {
   }
 
   return JSON.parse(text) as TReturn;
+}
+
+function createClientHeaders(canHaveBody: boolean, headers?: HeadersInit): Headers {
+  const nextHeaders = new Headers(headers);
+
+  if (canHaveBody && !nextHeaders.has("content-type")) {
+    nextHeaders.set("content-type", "application/json");
+  }
+
+  return nextHeaders;
 }
 
 export class HttpVerbHandler<
@@ -45,35 +78,26 @@ export class HttpVerbHandler<
 
   }
 
-  public handleRequest(arg: TCtx): Response {
+  public handleRequest(arg: TCtx): TReturn extends Promise<unknown> ? Promise<Response> : Response {
     try {
       const value = this.handler(arg);
 
-      if (value instanceof Response) {
-        return value;
+      if (value instanceof Promise) {
+        return value
+          .then(toResponse)
+          .catch(error =>
+            JsonResponse({
+              message: error instanceof Error ? error.message : String(error),
+            }, { status: 500 }),
+          ) as TReturn extends Promise<unknown> ? Promise<Response> : Response;
       }
 
-      if (value === null) {
-        return new Response(null, { status: 204 });
-      }
-
-      if (value === undefined) {
-        return JsonResponse(null, { status: 404 });
-      }
-
-      if (isExplicitStatusResponse(value)) {
-        if (value.status === 204 || value.body === null || value.body === undefined) {
-          return new Response(null, { status: value.status });
-        }
-        return JsonResponse(value.body, { status: value.status });
-      }
-
-      return JsonResponse(value, { status: 201 });
+      return toResponse(value) as TReturn extends Promise<unknown> ? Promise<Response> : Response;
     }
     catch (error) {
       return JsonResponse({
         message: error instanceof Error ? error.message : String(error),
-      }, { status: 500 });
+      }, { status: 500 }) as TReturn extends Promise<unknown> ? Promise<Response> : Response;
     }
   }
 
@@ -85,12 +109,13 @@ export class HttpVerbHandler<
 
     const clientFn = (async (...args: ClientBodyArgs<TCtx>) => {
       const body = args[0];
+      const options = args[1];
       const method = metadata.verb?.toUpperCase() ?? metadata.protocol?.toUpperCase() ?? "GET";
       const canHaveBody = !["GET", "HEAD"].includes(method);
 
       const nativeResponse = await fetch(metadata.serverUrl, {
         method,
-        headers: canHaveBody ? { "content-type": "application/json" } : undefined,
+        headers: createClientHeaders(canHaveBody, options?.headers),
         body: canHaveBody ? JSON.stringify(body ?? {}) : undefined,
       });
       const response = await readJsonResponse<TReturn>(nativeResponse);

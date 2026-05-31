@@ -20,10 +20,6 @@ describe("Tree Route Finder with Protocols", () => {
 
     const path = new Path("/api/users");
     const result = treeRouteFinder(routes, path);
-    console.log("Result isSome:", result.isSome());
-    console.log("Result unpacked:", result.unpack());
-    console.log("Result unpacked keys:", Object.keys(result.unpack() || {}));
-
     expect(result.isSome()).toBe(true);
     const handlers = result.unpack().valueOf();
     expect(handlers.POST).toBeDefined();

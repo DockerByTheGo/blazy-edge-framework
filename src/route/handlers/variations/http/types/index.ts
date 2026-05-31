@@ -1,15 +1,12 @@
 import type { IRouteHandlerMetadata } from "@blazyts/backend-lib/src/core/server";
-
 import type { TypedRecord, UnionToIntersection } from "@blazyts/better-standard-library";
-
 export type QueryValue = string | string[];
 export type QueryParams = Record<string, QueryValue>;
 import type { And, URecord } from "@blazyts/better-standard-library";
-import type { IWHATWG } from "src/types";
-
+import type { IWHATWG } from "../../../../../types";
+import type { HeadersInit } from "bun";
 
 type ResponseBody = ConstructorParameters<typeof Response>[0];
-
 
 export type TypedRecordShape<T> = T extends URecord
   ? T
@@ -53,7 +50,6 @@ export type HttpVerbHandlerCtx<
   TQuery extends QueryParams = QueryParams,
 > = {
   app?: TAppCtx;
-  meta?: Request;
   request: RestRequestCtx<TBody, TParams, TQuery>;
   createResponse: RestResponseCtx;
 } & TAppCtx;
@@ -69,10 +65,14 @@ export type HttpVerbClientMetadata = IRouteHandlerMetadata & Partial<{
   verb: string;
 }>;
 
+export type HttpVerbClientRequestOptions = {
+  headers?: HeadersInit;
+};
+
 export type ClientBody<TCtx> = TCtx extends { request: RestRequestCtx<infer TBody, any, any> } ? TBody : TCtx;
 export type ClientBodyArgs<TCtx> = {} extends ClientBody<TCtx>
-  ? [v?: ClientBody<TCtx>]
-  : [v: ClientBody<TCtx>];
+  ? [v?: ClientBody<TCtx>, options?: HttpVerbClientRequestOptions]
+  : [v: ClientBody<TCtx>, options?: HttpVerbClientRequestOptions];
 
 export type TypedResponseBody<TReturn> = Awaited<TReturn> extends { body: infer TBody }
   ? Omit<Awaited<TReturn>, "body"> & { body: NarrowTypedRecord<TypedRecordShape<TBody>> }

@@ -5,6 +5,7 @@ import type { ServiceDefault } from "../Service";
 export class ServiceManager<Services extends Record<string, ServiceDefault>> {
   config = {};
   public services: Services;
+  private hooks: Array<(data: { name: string; service: ServiceDefault }) => void>;
 
   constructor(services?: Services) {
     this.services = services ?? ({} as Services);
@@ -27,6 +28,7 @@ export class ServiceManager<Services extends Record<string, ServiceDefault>> {
     & Record<TName, T>
   > {
     this.services[v.name] = v.service;
+    this.hooks.forEach(callback => callback({ name: v.name, service: v.service }));
     return this as unknown as ServiceManager<Services & Record<TName, T>>;
   }
 

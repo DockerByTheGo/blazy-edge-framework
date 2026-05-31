@@ -1,12 +1,20 @@
 import { Hooks } from "@blazyts/backend-lib";
+import type { RequestData } from "@blazyts/backend-lib/src/core/server/types";
 
-import { treeRouteFinder } from "src/route/finders";
+import { treeRouteFinder } from "../route/finders";
 
 import { Blazy } from "./core";
 
+type DefaultRouterHooks = {
+  beforeHandler: ReturnType<typeof Hooks.empty>;
+  afterHandler: ReturnType<typeof Hooks.empty>;
+  onError: ReturnType<typeof Hooks.empty>;
+  onStartup: ReturnType<typeof Hooks.empty>;
+  onShutdown: ReturnType<typeof Hooks.empty>;
+};
+
 export class BlazyConstructor {
-  static createEmpty(): Blazy<{}, {
-  }> {
+  static createEmpty(): Blazy<{}, DefaultRouterHooks> {
     return new Blazy({
       beforeHandler: Hooks.empty(),
       afterHandler: Hooks.empty(),
@@ -25,6 +33,6 @@ export class BlazyConstructor {
       .createEmpty();
 
     return app
-      .beforeRequestHandler("attach", ctx => ({ ...ctx as { reqData: RequestData }, services: { ...app.services.services, mamanger: app.services } }));
+      .beforeRequestHandler("attach", ctx => ({ ...(ctx as unknown as { reqData: RequestData }), services: app.services }));
   }
 }

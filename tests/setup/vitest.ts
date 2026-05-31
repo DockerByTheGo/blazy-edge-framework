@@ -1,7 +1,6 @@
 import { expect } from "vitest";
 
-import { WebSocket as MockWebSocket } from "../mocks/bun";
-
+/* eslint-disable ts/consistent-type-definitions, ts/method-signature-style */
 declare module "vitest" {
   interface Assertion<T = unknown> {
     toBeFunction(): T;
@@ -11,6 +10,7 @@ declare module "vitest" {
     toBeFunction(): unknown;
   }
 }
+/* eslint-enable ts/consistent-type-definitions, ts/method-signature-style */
 
 expect.extend({
   toBeFunction(received: unknown) {
@@ -24,5 +24,3 @@ expect.extend({
 if (!("Bun" in globalThis)) {
   throw new Error("Tests must run with Bun. Use `bun x --bun vitest run --config vitest.config.ts`.");
 }
-
-(globalThis as any).WebSocket = MockWebSocket;

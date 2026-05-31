@@ -1,7 +1,6 @@
-import type { URecord } from "@blazyts/better-standard-library";
+import type { SimpleResult, URecord } from "@blazyts/better-standard-library";
 
-import type { SimpleResult } from "src/services/main";
-import type { ServiceBase } from "src/services/main";
+import type { ServiceBase } from "../../main";
 
 export type GenericLog = {
   startTime: string;

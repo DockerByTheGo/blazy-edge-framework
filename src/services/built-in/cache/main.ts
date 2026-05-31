@@ -1,6 +1,5 @@
-import type { Optionable } from "@blazyts/better-standard-library";
+import type { Optionable, SimpleResult } from "@blazyts/better-standard-library";
 
-import type { SimpleResult } from "../../main";
 
 export type CacheEntry<TValue> = {
   key: string;
@@ -23,3 +22,5 @@ export type ICacheService<TValue = unknown> = {
   saveEntry: (key: string, value: TValue, ttl?: number) => MaybePromise<CacheResult<void>>;
   setEntry: (key: string, value: TValue, ttl?: number) => MaybePromise<CacheResult<void>>;
 };
+
+export type ICache<TValue = unknown> = ICacheService<TValue>;

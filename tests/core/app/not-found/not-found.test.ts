@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { BlazyConstructor } from "src/app/constructors";
-import { JsonResponse } from "src/response";
+import { JsonResponse } from "src/route/handlers/variations/http/responses";
 
 function request(app: { route: (request: { reqData: any }) => Promise<unknown> }, url: string, protocol: string = "GET") {
   return app.route({
