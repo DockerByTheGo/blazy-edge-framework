@@ -163,6 +163,6 @@ const app = BlazyConstructor
 
 ```bash
 bun run build
-bun run test
+bun run node:test
 bun run lint
 ```

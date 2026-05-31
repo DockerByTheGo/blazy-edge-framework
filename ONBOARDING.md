@@ -108,14 +108,14 @@ When adding behavior, add tests near the behavior being changed. Prefer tests th
 The project intentionally keeps both test paths:
 
 ```sh
-bun run test
+bun run node:test
 bun run bun:test
 ```
 
-`bun run test` runs Vitest through Bun:
+`bun run node:test` runs Vitest through Bun:
 
 ```sh
-bun --bun x vitest run --config vitest.config.ts
+bun x --bun vitest run --config vitest.config.ts
 ```
 
 We use Vitest because it makes it easier to test the framework under different environments. This framework is Bun-first, and Bun is the intended way to use it, but Node support is still part of the compatibility promise. Vitest gives us a flexible runner for checking behavior outside the direct Bun test runner path.
