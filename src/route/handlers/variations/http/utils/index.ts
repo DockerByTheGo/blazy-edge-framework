@@ -99,7 +99,7 @@ export function createHttpVerbHandlerCtx<TBody = unknown, TParams extends object
   const appCtx = Object.fromEntries(
     Object.entries(raw).filter(([key]) =>
       !routeParamKeys.has(key)
-      && !["body", "params", "query", "reqData", "standard"].includes(key),
+      && !["body", "params", "query", "reqData", "meta", "standard"].includes(key),
     ),
   );
 

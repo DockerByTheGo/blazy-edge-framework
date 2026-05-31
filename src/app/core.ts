@@ -1,10 +1,10 @@
 import type { IRouteHandler, RouteFinder } from "@blazyts/backend-lib/src/core/server";
-import type { PathStringToObject, RouterHooks, type RouteTree } from "@blazyts/backend-lib/src/core/server/router/types";
-import type { Hook, Hooks, HooksDefault } from "@blazyts/backend-lib";
+import type { PathStringToObject, RouterHooks, RouteTree } from "@blazyts/backend-lib/src/core/server/router/types";
+import type { Hook, HooksDefault } from "@blazyts/backend-lib";
 import type { And, TypeSafeOmit, URecord } from "@blazyts/better-standard-library";
 import type z from "zod/v4";
 
-import { RouterObject } from "@blazyts/backend-lib";
+import { Hooks, RouterObject } from "@blazyts/backend-lib";
 import { Path } from "@blazyts/backend-lib/src/core/server/router/utils/path/Path";
 import { entries } from "@blazyts/better-standard-library";
 
@@ -22,19 +22,25 @@ import { NormalRouting } from "../route/matchers/normal";
 import { ServiceManager } from "../services/main";
 
 import type { ClientBuilder } from "../client/client-builder/clientBuilder";
-import type { Service, ServiceBase } from "../services/main/Service";
+import type { ServiceBase } from "../services/main/Service";
 import type { HandlerProtocol } from "../types";
 
 import { CleintBuilderConstructors } from "../client/client-builder/clientBuilder";
 import { treeRouteFinder } from "../route/finders";
 import type { ZodObject } from "zod/v4";
-import { FailedValidationResponse, JsonResponse } from "../route/handlers/variations/http/responses";
+import { FailedValidationResponse, HtmlFileResponse, HtmlResponse, JsonResponse } from "../route/handlers/variations/http/responses";
 
 const FILE_SAVER_SERVICE_NAME = "fileSaver";
 const CACHE_SERVICE_NAME = "cache";
 
 type Handler<TArg> = (arg: TArg) => unknown;
 type EmptyHooks = ReturnType<typeof Hooks.empty>;
+type AwaitedBeforeHandlerCtx<THooks extends RouterHooks> = Awaited<THooks["beforeHandler"]["TGetLastHookReturnType"]>;
+type BlazyHandlerCtx<
+  TServices extends Record<string, ServiceBase<URecord>>,
+  THooks extends RouterHooks,
+> = Omit<AwaitedBeforeHandlerCtx<THooks>, "reqData" | "services">
+  & { services: ServiceManager<TServices> };
 const subAppTypes = ["contained", "applyToParent", "global"] as const;
 type SubAppTypes = (typeof subAppTypes)[number];
 type BlazyRequestData = {
@@ -98,8 +104,8 @@ function createNotFoundContext(requestData: BlazyRequestData, reason: NotFoundRe
 export class Blazy<
   TRouterTree extends RouteTree,
   THooks extends RouterHooks,
-  Tservices extends Record<string, Service<ServiceBase<URecord>>> = {},
-  TDCtx extends Tservices & THooks["beforeHandler"]["TGetLastHookReturnType"] = Tservices & THooks["beforeHandler"]["TGetLastHookReturnType"],
+  Tservices extends Record<string, ServiceBase<URecord>> = {},
+  TDCtx extends URecord = BlazyHandlerCtx<Tservices, THooks>,
 > extends RouterObject<{
   beforeHandler: EmptyHooks;
   afterHandler: EmptyHooks;
@@ -214,7 +220,7 @@ export class Blazy<
     }
 
     try {
-      const req = this.routerHooks.beforeHandler.execute(request) as { reqData: BlazyRequestData };
+      const req = await this.routerHooks.beforeHandler.execute(request) as { reqData: BlazyRequestData };
       const routeOptional = this.routeFinder(this.routes, new Path(req.reqData.url));
 
       if (routeOptional.isNone()) {
@@ -232,25 +238,33 @@ export class Blazy<
         );
       }
 
-      const response = handler.handleRequest(req);
-      return this.routerHooks.afterHandler.execute(response);
+      const response = await handler.handleRequest(req);
+      return await this.routerHooks.afterHandler.execute(response);
     }
     catch (e) {
-      return this.routerHooks.onError.execute(e);
+      return await this.routerHooks.onError.execute(e);
     }
   }
 
   /**
    * Adds a service to the Blazy instance, making it available through hooks.
-   * Services are accessible in context as:
-   * - ctx.services.serviceName (direct access to service)
-   * - ctx.services (access to ServiceManager itself)
+   * Services are accessible in handler context through ctx.services.
    * @param name - The name of the service.
    * @param v - The service object containing functions.
    */
-  addService<TName extends string, TService extends ServiceBase<URecord>>(name: TName, v: TService): Blazy<TRouterTree, THooks, Tservices & { [key in TName]: TService }> {
+  addService<
+    TName extends string,
+    TService extends ServiceBase<URecord>
+  >(
+    name: TName,
+    v: TService
+  ): Blazy<
+    TRouterTree,
+    THooks,
+    Tservices & { [key in TName]: TService }
+  > {
     this.services.addService({ name, service: v });
-    return this;
+    return this as unknown as Blazy<TRouterTree, THooks, Tservices & { [key in TName]: TService }>;
   }
 
   /**
@@ -291,8 +305,23 @@ export class Blazy<
     ]>,
     Tservices
   > {
-    this.beforeHandler({ name, handler: func });
-    return this;
+    this.beforeHandler({ name, handler: func as any });
+    return this as unknown as Blazy<
+      TRouterTree,
+      And<[
+        TypeSafeOmit<THooks, "beforeHandler">,
+        {
+          beforeHandler: Hooks<[
+            ...THooks["beforeHandler"]["v"],
+            Hook<
+              TName,
+              (arg: THooks["beforeHandler"]["TGetLastHookReturnType"]) => TReturn
+            >,
+          ]>;
+        },
+      ]>,
+      Tservices
+    >;
   }
 
   /**
@@ -333,18 +362,6 @@ export class Blazy<
     }
   }
 
-  rrws<
-    THandler extends (arg: (TArgs extends undefined ? URecord : z.infer<TArgs>) & ExtractParams<TPath>) => unknown,
-    TArgs extends z.ZodObject | undefined,
-    TPath extends string,
-  >(v: {
-    handler: THandler;
-    args: TArgs;
-    path: TPath;
-  },
-  ) {
-  }
-
   // allows you to call multiple methods on the app while using the app object, this allosws for use cases where you may need to access the app object but do not wanna breake method chaining for example
   /*
 
@@ -352,8 +369,7 @@ export class Blazy<
 
     // without it you will have to break the method chaining to console log at this current point since yeah you could at thend but then it will also have applied methods which you do not wanna observer
   */
-
-  block<TReturn extends Blazy>(func: (app: this) => TReturn): TReturn {
+  block<TReturn extends Blazy<any, any, any, any>>(func: (app: this) => TReturn): TReturn {
     return func(this);
   }
 
@@ -553,7 +569,7 @@ export class Blazy<
       {},
       ExtractParams<TPath>
     >,
-    THandler extends (ctx: TContext) => any = (ctx: TContext) => {status: number, body: unknown} | URecord | null | undefined,
+    THandler extends (ctx: TContext) => any = (ctx: TContext) => { status: number, body: unknown } | URecord | null | undefined,
   >(config: {
     path: TPath;
     handler: THandler;
@@ -594,7 +610,6 @@ export class Blazy<
       handler: () => "html" in config
         ? HtmlResponse(config.html, config.init)
         : HtmlFileResponse(config.filePath, config.init),
-      args: undefined,
     });
   }
 
@@ -615,7 +630,6 @@ export class Blazy<
       path: `/rpc/${v.name}`,
       handler: v.handler,
       args: v.args,
-      meta: { protocol: "POST", verb: "POST" },
     });
   }
 

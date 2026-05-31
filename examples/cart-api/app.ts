@@ -18,7 +18,6 @@ export const app = BlazyConstructor
         {
             path: "/:hi/:koko/lolo/:po",
             handler: v => {
-                console.log(v.request)
                 const random = Math.random()
                 console.log("random",random)
                 if (random > 0.5) {
@@ -57,6 +56,10 @@ export const app = BlazyConstructor
                 )
             },
         }
+    })
+    .post({
+        path: "/koko",
+        handler: v => JSON.stringify(v)
     })
     .rpc({
         name: "getCart",

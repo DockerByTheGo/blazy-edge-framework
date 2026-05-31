@@ -18,6 +18,29 @@ function isExplicitStatusResponse(value: unknown): value is ExplicitStatusRespon
     && "body" in value;
 }
 
+function toResponse(value: unknown): Response {
+  if (value instanceof Response) {
+    return value;
+  }
+
+  if (value === null) {
+    return new Response(null, { status: 204 });
+  }
+
+  if (value === undefined) {
+    return JsonResponse(null, { status: 404 });
+  }
+
+  if (isExplicitStatusResponse(value)) {
+    if (value.status === 204 || value.body === null || value.body === undefined) {
+      return new Response(null, { status: value.status });
+    }
+    return JsonResponse(value.body, { status: value.status });
+  }
+
+  return JsonResponse(value, { status: 201 });
+}
+
 async function readJsonResponse<TReturn>(response: Response): Promise<TReturn> {
   if (response.status === 204) {
     return null as TReturn;
@@ -45,35 +68,26 @@ export class HttpVerbHandler<
 
   }
 
-  public handleRequest(arg: TCtx): Response {
+  public handleRequest(arg: TCtx): TReturn extends Promise<unknown> ? Promise<Response> : Response {
     try {
       const value = this.handler(arg);
 
-      if (value instanceof Response) {
-        return value;
+      if (value instanceof Promise) {
+        return value
+          .then(toResponse)
+          .catch(error =>
+            JsonResponse({
+              message: error instanceof Error ? error.message : String(error),
+            }, { status: 500 }),
+          ) as TReturn extends Promise<unknown> ? Promise<Response> : Response;
       }
 
-      if (value === null) {
-        return new Response(null, { status: 204 });
-      }
-
-      if (value === undefined) {
-        return JsonResponse(null, { status: 404 });
-      }
-
-      if (isExplicitStatusResponse(value)) {
-        if (value.status === 204 || value.body === null || value.body === undefined) {
-          return new Response(null, { status: value.status });
-        }
-        return JsonResponse(value.body, { status: value.status });
-      }
-
-      return JsonResponse(value, { status: 201 });
+      return toResponse(value) as TReturn extends Promise<unknown> ? Promise<Response> : Response;
     }
     catch (error) {
       return JsonResponse({
         message: error instanceof Error ? error.message : String(error),
-      }, { status: 500 });
+      }, { status: 500 }) as TReturn extends Promise<unknown> ? Promise<Response> : Response;
     }
   }
 

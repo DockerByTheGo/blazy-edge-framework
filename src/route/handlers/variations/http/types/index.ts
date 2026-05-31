@@ -53,7 +53,6 @@ export type HttpVerbHandlerCtx<
   TQuery extends QueryParams = QueryParams,
 > = {
   app?: TAppCtx;
-  meta?: Request;
   request: RestRequestCtx<TBody, TParams, TQuery>;
   createResponse: RestResponseCtx;
 } & TAppCtx;

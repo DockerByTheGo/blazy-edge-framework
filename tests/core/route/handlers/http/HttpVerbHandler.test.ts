@@ -42,6 +42,18 @@ describe("HttpVerbHandler", () => {
     await expect(errored.json()).resolves.toEqual({ message: "boom" });
   });
 
+  it("handleRequest awaits async handlers before creating the response", async () => {
+    const handler = new HttpVerbHandler(
+      async () => new Response(JSON.stringify({ ok: true }), { status: 202 }),
+      { subRoute: "/async", method: "POST" },
+    );
+
+    const response = await handler.handleRequest({} as any);
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+  });
+
   it("handleRequest narrows request body, params, and response data types", () => {
     type Ctx = HttpVerbHandlerCtx<
       { auth: { userId: string } },

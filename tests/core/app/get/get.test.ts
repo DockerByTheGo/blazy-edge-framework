@@ -78,4 +78,65 @@ describe("get()", () => {
     expect(protocols.POST.metadata.subRoute).toBe("/resource");
     expect(protocols.GET.metadata.subRoute).toBe("/resource");
   });
+
+  it("does not expose internal request fields on the route handler context", async () => {
+    const app = BlazyConstructor.createProd()
+      .beforeRequestHandler("addMeta", ctx => ({ ...ctx, meta: { internal: true } }))
+      .get({
+        path: "/public-context",
+        handler: ctx => ({
+          body: {
+            hasReqData: "reqData" in ctx,
+            hasMeta: "meta" in ctx,
+          },
+        }),
+      });
+
+    const response = await app.route({
+      reqData: {
+        body: {},
+        headers: {},
+        protocol: "GET",
+        url: "http://localhost/public-context",
+      },
+    });
+
+    expect(response).toBeInstanceOf(Response);
+    await expect((response as Response).json()).resolves.toMatchObject({
+      body: {
+        hasReqData: false,
+        hasMeta: false,
+      },
+    });
+  });
+
+  it("awaits async before handlers before invoking the route handler", async () => {
+    const app = BlazyConstructor.createProd()
+      .beforeRequestHandler("attachUser", async ctx => ({
+        ...ctx,
+        user: { id: "ada" },
+      }))
+      .get({
+        path: "/me",
+        handler: ctx => {
+          if (!ctx.user) {
+            return ctx.createResponse.json({ error: "unauthorized" }, { status: 401 });
+          }
+
+          return ctx.createResponse.json({ user: ctx.user }, { status: 200 });
+        },
+      });
+
+    const response = await app.route({
+      reqData: {
+        body: {},
+        headers: {},
+        protocol: "GET",
+        url: "http://localhost/me",
+      },
+    }) as Response;
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ user: { id: "ada" } });
+  });
 });
