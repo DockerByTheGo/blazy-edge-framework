@@ -1,168 +1,39 @@
-# @blazyts/blazy-edge
+# Blazy Edge Framework
 
-Core Blazy Edge framework package.
+Higher-level backend framework built on the minimal backend lib, with services, route builders, hooks, RPC/client helpers, and file/websocket handlers.
 
-It provides the `Blazy` app, route helpers, hooks, services, typed HTTP contexts, RPC routes, WebSocket routes, static file routes, response helpers, and a Bun `listen()` adapter.
+## Install
 
-## Basic App
+`bun add @blazyts/blazy-edge`
 
-```ts
-import { BlazyConstructor } from "@blazyts/blazy-edge";
-
-export const app = BlazyConstructor
-  .createProd()
-  .get({
-    path: "/health",
-    handler: () => ({ body: { ok: true } }),
-  })
-  .post({
-    path: "/users",
-    handler: ctx => {
-      const name = ctx.request.body.get("name");
-      return { body: { id: crypto.randomUUID(), name } };
-    },
-  });
-
-app.listen(3000);
-```
-
-## Routes
-
-Use `get()` and `post()` for HTTP routes. Dynamic path params are exposed through `ctx.request.params`.
+## Usage
 
 ```ts
-const app = BlazyConstructor
-  .createProd()
-  .get({
-    path: "/users/:userId",
-    handler: ctx => ({
-      body: {
-        userId: ctx.request.params.get("userId"),
-      },
-    }),
-  });
+import { BlazyConstructor } from '@blazyts/blazy-edge';
 ```
 
-The request context includes:
+- Create an app with the framework constructors, register services and routes, then expose HTTP/file/websocket handlers.
+- Use this package as the core integration point for batteries such as auth, cache, logger, file upload, and explorer UI.
 
-- `ctx.request.url`, `path`, `method`, and `verb`
-- `ctx.request.headers`
-- `ctx.request.body`
-- `ctx.request.params`
-- `ctx.request.query`
-- `ctx.response.json()`, `text()`, `html()`, and `standard()`
+## Public Surface
 
-## Validation
+- Package name: `@blazyts/blazy-edge`
+- Module kind: `module`
+- Entry point: `index.ts`
 
-POST routes can validate request bodies with Zod.
-
-```ts
-import z from "zod/v4";
-
-const app = BlazyConstructor
-  .createProd()
-  .post({
-    path: "/login",
-    args: z.object({
-      username: z.string(),
-      password: z.string(),
-    }),
-    handler: ctx => ({
-      body: {
-        username: ctx.request.body.get("username"),
-      },
-    }),
-  });
-```
-
-## Services
-
-Services are added with `addService()` and are available as `ctx.services.<name>` when using `createProd()`.
-
-```ts
-const cartService = {
-  config: {},
-  getAll: () => ["cart-1", "cart-2"],
-};
-
-const app = BlazyConstructor
-  .createProd()
-  .addService("cart", cartService)
-  .get({
-    path: "/cart",
-    handler: ctx => ({ body: ctx.services.cart.getAll() }),
-  });
-```
-
-## Hooks
-
-Use `beforeRequestHandler()` to enrich request context before the route handler runs.
-
-```ts
-const app = BlazyConstructor
-  .createProd()
-  .beforeRequestHandler("requestId", ctx => ({
-    ...ctx,
-    requestId: crypto.randomUUID(),
-  }))
-  .get({
-    path: "/debug",
-    handler: ctx => ({ body: { requestId: ctx.requestId } }),
-  });
-```
-
-## RPC
-
-`rpc()` exposes a function-style route under `/rpc/<name>`.
-
-```ts
-const app = BlazyConstructor
-  .createProd()
-  .rpc({
-    name: "getCart",
-    handler: () => ({ items: ["cart-1", "cart-2"] }),
-  });
-```
-
-## WebSockets
-
-Use `ws()` with message schemas to define request/response WebSocket behavior.
-
-```ts
-import { Message } from "@blazyts/blazy-edge";
-import z from "zod/v4";
-
-const app = BlazyConstructor
-  .createProd()
-  .ws({
-    path: "/ws/:roomId",
-    messages: {
-      messagesItCanSend: {},
-      messagesItCanRecieve: {
-        ping: new Message(z.object({ value: z.string() }), async ctx => {
-          await ctx.ws.message("pong", { value: ctx.message.body.get("value") });
-        }),
-      },
-    },
-  });
-```
-
-## Static Files And HTML
-
-```ts
-const app = BlazyConstructor
-  .createProd()
-  .file("./public/logo.png", "/logo.png")
-  .html({
-    path: "/",
-    html: "<h1>Hello from Blazy</h1>",
-  });
-```
+Runtime dependencies: `@aws-sdk/client-s3`, `zod`.
+Peer dependencies: `typescript`.
 
 ## Scripts
 
-```bash
-bun run build
-bun run node:test
-bun run lint
-```
+- `bun run build`: `bunx tsc -p tsconfig.json --noEmit`
+- `bun run lint`: `bun --bun eslint src tests`
+- `bun run node:test`: `bun x --bun vitest run --config vitest.config.ts`
+- `bun run bun:test`: `bun test`
+- `bun run coverage`: `bun test --coverage`
+
+## Notes
+
+- Batteries import internal service contracts from this package, so moving service types can cascade through many packages.
+- Route DSL, normal routing, and custom matchers coexist; preserve public types while refactoring internals.
+- Some README-level docs also exist one directory up in `core/blazy-edge/docs`.
